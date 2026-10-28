@@ -35,6 +35,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   background: var(--bg); color: var(--ink);
   font-family: var(--font-ui); font-size: 16px; line-height: 1.5;
@@ -113,6 +114,8 @@ form.answer input:focus { outline: none; border-color: var(--accent); box-shadow
 .fb-table td.h { font-family: var(--font-heb); font-size: 1.6rem; line-height: 1; width: 2.2em; text-align: center; }
 .fb-table td.you { font-family: var(--font-mono); }
 .fb-table td.mark { width: 1.5em; font-weight: 700; }
+.fb-table td.you .is { font-family: var(--font-ui); color: var(--ink); white-space: nowrap; }
+.heb-inline { font-family: var(--font-heb); font-size: 1.4em; line-height: 1; vertical-align: -0.1em; }
 .fb-table tr.ok td.mark { color: var(--good); }
 .fb-table tr.no td.mark, .fb-table tr.no td.you { color: var(--bad); }
 .fb-table td.n { color: var(--muted); font-variant-numeric: tabular-nums; width: 1.5em; }
@@ -192,7 +195,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   <details class="ref" id="ref">
     <summary>Letter names and shortcuts</summary>
     <div class="ref-body">
-      <p>Any listed name spelling is accepted. Shortcuts are the short codes after each name; edit them to suit yourself (separate several with commas). Names like <i>vet</i>, <i>khaf</i>, <i>fe</i> and <i>sin</i> count for their letter. For words, type the letters in reading order: the rightmost Hebrew letter first. Separate letters with spaces, or run shortcuts together if you like (<code>bayz</code> is fine only when it can be read one way).</p>
+      <p>Any listed name spelling is accepted. Shortcuts are the short codes after each name; edit them to suit yourself (separate several with commas). Names like <i>vet</i>, <i>khaf</i> and <i>fe</i> count for their letter. Shin and Sin are separate cards, and their dot is always shown, even with vowel points off. For words, type the letters in reading order: the rightmost Hebrew letter first. Separate letters with spaces, or run shortcuts together if you like (<code>bayz</code> is fine only when it can be read one way).</p>
       <div class="ref-grid" id="ref-grid"></div>
       <div class="ref-warn" id="ref-warn" aria-live="polite"></div>
       <div class="ref-actions">
@@ -227,7 +230,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     { id: "tsade",  ch: "צ", name: "Tsade",  names: ["tsade","tsadi","tsadeh","tsaddi","tzadi","tzade","tzaddi","sade","tsadik","tzadik"], codes: ["ts","tz"], fin: "ץ" },
     { id: "qof",    ch: "ק", name: "Qof",    names: ["qof","qoph","kof","koph","kuf","quf"],           codes: ["q"] },
     { id: "resh",   ch: "ר", name: "Resh",   names: ["resh","reish"],                                  codes: ["r"] },
-    { id: "shin",   ch: "ש", name: "Shin",   names: ["shin","sin","seen","sheen"],                     codes: ["sh"] },
+    { id: "shin",   ch: "שׁ", name: "Shin",   names: ["shin","sheen"],                                 codes: ["sh"] },
+    { id: "sin",    ch: "שׂ", name: "Sin",    names: ["sin","seen"],                                    codes: ["ss"] },
     { id: "tav",    ch: "ת", name: "Tav",    names: ["tav","taw","tau","taf"],                         codes: ["t"] },
   ];
   const BY_ID = Object.fromEntries(LETTERS.map(l => [l.id, l]));
@@ -268,13 +272,29 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     ["כְּלִי", "vessel, jar", "2:9"], ["פָּנִים", "face", "2:10"], ["יָד", "hand", "1:13"],
     ["נֶפֶשׁ", "life, soul", "4:15"], ["צִוָּה", "to command", "2:9"], ["חַיִל", "worth, strength", "3:11"],
   ].map(([pointed, gloss, ref]) => {
+    const clusters = parseClusters(pointed);
+    return { key: pointed, pointed, gloss, ref, clusters, ids: clusters.map(c => c.id) };
+  });
+
+  // Split pointed text into letters with their marks. Shin/Sin is told apart by its dot,
+  // and `plain` keeps that dot even when the other vowel points are hidden.
+  function parseClusters(pointed) {
     const clusters = [];
     for (const c of pointed) {
       if (c >= "א" && c <= "ת") clusters.push({ base: c, text: c });
       else if (clusters.length) clusters[clusters.length - 1].text += c;
     }
-    return { key: pointed, pointed, gloss, ref, clusters, ids: clusters.map(c => CHAR_TO_ID[c.base]) };
-  });
+    clusters.forEach(cl => {
+      if (cl.base === "ש") {
+        cl.id = cl.text.includes("ׂ") ? "sin" : "shin";
+        cl.plain = BY_ID[cl.id].ch;
+      } else {
+        cl.id = CHAR_TO_ID[cl.base];
+        cl.plain = cl.base;
+      }
+    });
+    return clusters;
+  }
 
   // ---------- Saved per-viewer settings ----------
   const STORE = "ruth-alephbet-v1";
@@ -369,7 +389,15 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
 
   function letterLabel(id, ch) {
     const l = BY_ID[id];
-    return (ch && ch !== l.ch ? "Final " : "") + l.name;
+    return (ch && ch === l.fin ? "Final " : "") + l.name;
+  }
+  // Which letter does a typed token name? Used to explain a wrong answer.
+  function letterFor(tok) {
+    return LETTERS.find(l => l.names.includes(tok) || (state.codes[l.id] || []).includes(tok)) || null;
+  }
+  function describe(l) {
+    const codes = (state.codes[l.id] || []).filter(Boolean);
+    return `<span class="heb-inline" lang="he">${l.ch}</span> ${l.name}${codes.length ? ` (<code>${esc(codes.join(", "))}</code>)` : ""}`;
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
 
@@ -390,7 +418,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     } else {
       $("prompt-label").textContent = `Spell this word · ${c.clusters.length} letters`;
       glyphs.className = "glyphs word";
-      glyphs.innerHTML = c.clusters.map((cl, i) => `<span class="cl" data-i="${i}">${state.points ? cl.text : cl.base}</span>`).join("");
+      glyphs.innerHTML = c.clusters.map((cl, i) => `<span class="cl" data-i="${i}">${state.points ? cl.text : cl.plain}</span>`).join("");
       $("direction").hidden = false;
       $("gloss").innerHTML = "&nbsp;";
       input.placeholder = "first letter first, e.g. r v t";
@@ -440,9 +468,12 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     const verdict = res.ok ? "Correct" : res.gaveUp ? "Here is the answer" : "Not quite";
     let html = `<div class="verdict">${verdict}</div>`;
     if (state.mode === "letters") {
-      const l = BY_ID[c.id];
       const codes = (state.codes[c.id] || []).filter(Boolean);
-      html += `<div><b>${letterLabel(c.id, c.ch)}</b>${codes.length ? ` · shortcut <code>${esc(codes.join(", "))}</code>` : ""}${!res.gaveUp && !res.ok ? ` · you typed <code>${esc(normalize(input.value))}</code>` : ""}</div>`;
+      html += `<div><b>${letterLabel(c.id, c.ch)}</b>${codes.length ? ` · shortcut <code>${esc(codes.join(", "))}</code>` : ""}</div>`;
+      if (!res.gaveUp && !res.ok) {
+        const typed = normalize(input.value), other = letterFor(typed);
+        html += `<div>You typed <code>${esc(typed)}</code>${other ? `, which is ${describe(other)}` : ""}</div>`;
+      }
     } else {
       $("gloss").innerHTML = `<b>${esc(c.gloss)}</b> · Ruth ${c.ref}`;
       if (res.run) {
@@ -454,9 +485,10 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       html += `<div class="fb-table"><table><thead><tr><th></th><th>Letter</th><th>Name</th>${showYou ? "<th>You typed</th><th></th>" : ""}</tr></thead><tbody>`;
       res.rows.forEach((r, i) => {
         const codes = (state.codes[r.id] || []).filter(Boolean);
-        html += `<tr class="${r.ok ? "ok" : "no"}"><td class="n">${i + 1}</td><td class="h" lang="he">${c.clusters[i].base}</td>`
+        const other = !r.ok && r.you ? letterFor(r.you) : null;
+        html += `<tr class="${r.ok ? "ok" : "no"}"><td class="n">${i + 1}</td><td class="h" lang="he">${c.clusters[i].plain}</td>`
           + `<td>${letterLabel(r.id, c.clusters[i].base)}${codes.length ? ` <span style="color:var(--muted)">(${esc(codes[0])})</span>` : ""}</td>`
-          + (showYou ? `<td class="you">${esc(r.you || "—")}</td><td class="mark">${r.ok ? "✓" : "✗"}</td>` : "")
+          + (showYou ? `<td class="you">${esc(r.you || "—")}${other ? ` <span class="is">= ${describe(other)}</span>` : ""}</td><td class="mark">${r.ok ? "✓" : "✗"}</td>` : "")
           + `</tr>`;
       });
       html += `</tbody></table></div>`;
@@ -538,7 +570,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   $("opt-finals").addEventListener("change", e => { state.finals = e.target.checked; persist(); if (!state.answered) next(); });
   $("opt-points").addEventListener("change", e => {
     state.points = e.target.checked; persist();
-    if (state.mode === "words") glyphs.querySelectorAll(".cl").forEach((el, i) => { el.textContent = state.points ? state.card.clusters[i].text : state.card.clusters[i].base; });
+    if (state.mode === "words") glyphs.querySelectorAll(".cl").forEach((el, i) => { el.textContent = state.points ? state.card.clusters[i].text : state.card.clusters[i].plain; });
   });
   $("opt-strict").addEventListener("change", e => { state.strict = e.target.checked; persist(); });
 
@@ -563,7 +595,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   applyFont(state.font);
 
   // Expose the grader for quick checks in the console.
-  window.__grade = (text, hebrew) => grade(text, [...hebrew].filter(c => CHAR_TO_ID[c]).map(c => CHAR_TO_ID[c])).ok;
+  window.__grade = (text, hebrew) => grade(text, parseClusters(hebrew).map(c => c.id)).ok;
 
   renderRef();
   renderStats();
