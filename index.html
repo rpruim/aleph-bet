@@ -296,6 +296,18 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     { id: "sin",    ch: "שׂ", name: "Sin",    names: ["sin","seen"],                                    codes: ["ss"] },
     { id: "tav",    ch: "ת", name: "Tav",    names: ["tav","taw","tau","taf"],                         codes: ["t"] },
   ];
+  // Each letter's name is itself a word, spelled out in Hebrew, with its traditional meaning.
+  // Several meanings are uncertain; those are marked "probably".
+  const LETTER_WORDS = {
+    aleph: ["אָלֶף", "ox"],                bet: ["בֵּית", "house"],             gimel: ["גִּימֶל", "camel"],
+    dalet: ["דָּלֶת", "door"],              he: ["הֵא", "probably “look!” or “window”"], vav: ["וָו", "hook, peg"],
+    zayin: ["זַיִן", "weapon"],            chet: ["חֵית", "probably “fence, wall”"], tet: ["טֵית", "probably “snake” or “basket”"],
+    yod: ["יוֹד", "hand"],                kaf: ["כַּף", "palm of the hand"],    lamed: ["לָמֶד", "ox-goad"],
+    mem: ["מֵם", "water"],                nun: ["נוּן", "fish"],               samekh: ["סָמֶךְ", "support, prop"],
+    ayin: ["עַיִן", "eye; spring of water"], pe: ["פֵּא", "mouth"],             tsade: ["צָדִי", "probably “fishhook”"],
+    qof: ["קוֹף", "probably “back of the head” or “monkey”"], resh: ["רֵישׁ", "head"], shin: ["שִׁין", "tooth"],
+    sin: ["שִׂין", "tooth"],               tav: ["תָּו", "mark, sign"],
+  };
   const BY_ID = Object.fromEntries(LETTERS.map(l => [l.id, l]));
   const CHAR_TO_ID = {};
   LETTERS.forEach(l => { CHAR_TO_ID[l.ch] = l.id; if (l.fin) CHAR_TO_ID[l.fin] = l.id; });
@@ -1395,6 +1407,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     if (state.mode === "letters") {
       const codes = (state.codes[c.id] || []).filter(Boolean);
       html += `<div><b>${letterLabel(c.id, c.ch)}</b>${codes.length ? ` · shortcut <code>${esc(codes.join(", "))}</code>` : ""}</div>`;
+      const [word, means] = LETTER_WORDS[c.id];
+      html += `<div>As a word: <span class="heb-inline" lang="he">${word}</span> ${means.startsWith("probably") ? esc(means) : `“${esc(means)}”`}</div>`;
       if (!res.gaveUp && !res.ok) {
         const typed = normalize(input.value), other = letterFor(typed);
         html += `<div>You typed <code>${esc(typed)}</code>${other ? `, which is ${describe(other)}` : ""}</div>`;
