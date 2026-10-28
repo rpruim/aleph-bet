@@ -1,0 +1,572 @@
+<title>Aleph-Bet for Ruth</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@400;500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column — mode tabs, the card, the answer line, feedback; reference table folds below. */
+:root {
+  --bg: #eceee6;
+  --surface: #fafaf5;
+  --ink: #1d241e;
+  --muted: #5a6458;
+  --line: #d3d8cb;
+  --accent: #8a6112;      /* barley, for text */
+  --accent-wash: #f1e3bd; /* barley, for fills */
+  --good: #2a7346;
+  --good-wash: #dcefe1;
+  --bad: #ad3628;
+  --bad-wash: #f6dfda;
+  --font-heb: "Noto Serif Hebrew", "SBL Hebrew", "Times New Roman", serif;
+  --font-ui: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131915; --surface: #1b231e; --ink: #e6eadf; --muted: #9ba596; --line: #2d3a31;
+    --accent: #e2b34e; --accent-wash: #3a3018; --good: #72c48f; --good-wash: #183223;
+    --bad: #f08273; --bad-wash: #3b1f1b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131915; --surface: #1b231e; --ink: #e6eadf; --muted: #9ba596; --line: #2d3a31;
+  --accent: #e2b34e; --accent-wash: #3a3018; --good: #72c48f; --good-wash: #183223;
+  --bad: #f08273; --bad-wash: #3b1f1b; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-ui); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+h1 .heb { font-family: var(--font-heb); font-weight: 500; color: var(--accent); margin-left: 0.35em; }
+.stats { display: flex; gap: 16px; color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink); }
+
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; width: fit-content; max-width: 100%; }
+.tabs button {
+  font: inherit; font-weight: 700; font-size: 0.95rem; border: 0; border-radius: 7px;
+  padding: 8px 14px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--accent-wash); color: var(--ink); }
+.tabs button .sub { font-weight: 400; opacity: 0.8; }
+
+.options { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.92rem; color: var(--muted); }
+.options label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.options input { accent-color: var(--accent); width: 16px; height: 16px; }
+.options select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; max-width: 100%; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 28px 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  position: relative;
+}
+.prompt-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.glyphs {
+  font-family: var(--font-heb); font-weight: 500; line-height: 1.35;
+  font-size: clamp(5rem, 22vw, 8.5rem); min-height: 1.35em;
+  display: flex; align-items: center; justify-content: center;
+}
+.glyphs.word { font-size: clamp(3.2rem, 13vw, 5.5rem); }
+.glyphs .cl { display: inline-block; padding: 0 0.02em; border-bottom: 3px solid transparent; transition: border-color .15s, color .15s; }
+.glyphs .cl.cur { border-bottom-color: var(--accent); }
+.glyphs .cl.ok { color: var(--good); }
+.glyphs .cl.no { color: var(--bad); }
+.direction { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.direction .arrow { font-size: 1.1rem; color: var(--accent); }
+.gloss { font-size: 0.95rem; color: var(--muted); min-height: 1.5em; text-align: center; }
+.gloss b { color: var(--ink); }
+
+form.answer { display: flex; gap: 8px; flex-wrap: wrap; }
+form.answer input {
+  flex: 1 1 260px; min-width: 0; font-family: var(--font-mono); font-size: 1.15rem;
+  padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--line);
+  background: var(--surface); color: var(--ink);
+}
+form.answer input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
+.btn {
+  font: inherit; font-weight: 700; padding: 12px 18px; border-radius: 10px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn:focus-visible, .tabs button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.hint { font-size: 0.85rem; color: var(--muted); margin: -8px 0 0; }
+.hint kbd { font-family: var(--font-mono); font-size: 0.8rem; padding: 1px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+
+.feedback { border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.feedback.good { background: var(--good-wash); }
+.feedback.bad { background: var(--bad-wash); }
+.feedback .verdict { font-weight: 700; font-size: 1.05rem; }
+.feedback.good .verdict { color: var(--good); }
+.feedback.bad .verdict { color: var(--bad); }
+.fb-table { overflow-x: auto; }
+.fb-table table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+.fb-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; padding: 4px 8px; }
+.fb-table td { padding: 5px 8px; border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent); vertical-align: middle; }
+.fb-table td.h { font-family: var(--font-heb); font-size: 1.6rem; line-height: 1; width: 2.2em; text-align: center; }
+.fb-table td.you { font-family: var(--font-mono); }
+.fb-table td.mark { width: 1.5em; font-weight: 700; }
+.fb-table tr.ok td.mark { color: var(--good); }
+.fb-table tr.no td.mark, .fb-table tr.no td.you { color: var(--bad); }
+.fb-table td.n { color: var(--muted); font-variant-numeric: tabular-nums; width: 1.5em; }
+
+details.ref { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+details.ref summary { cursor: pointer; padding: 14px 16px; font-weight: 700; }
+details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.ref-body p { margin: 0; color: var(--muted); font-size: 0.92rem; max-width: 65ch; }
+.ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.ref-item { display: grid; grid-template-columns: 2.4rem 1fr; align-items: center; gap: 4px 10px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); }
+.ref-item .rh { font-family: var(--font-heb); font-size: 2rem; line-height: 1; text-align: center; grid-row: span 2; }
+.ref-item .rh small { font-size: 1.1rem; color: var(--muted); }
+.ref-item .rn { font-weight: 700; font-size: 0.92rem; }
+.ref-item input { font-family: var(--font-mono); font-size: 0.85rem; padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; min-width: 0; }
+.ref-item input.conflict { border-color: var(--bad); }
+.ref-warn { color: var(--bad); font-size: 0.88rem; min-height: 1.2em; }
+.ref-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ref-actions .btn { padding: 7px 12px; font-size: 0.88rem; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Aleph-Bet for Ruth<span class="heb" lang="he">אָלֶף־בֵּית</span></h1>
+    <div class="stats" aria-live="polite">
+      <span>Correct <b id="st-right">0</b>/<b id="st-total">0</b></span>
+      <span>Streak <b id="st-streak">0</b></span>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-letters" aria-selected="true">1 · Letters</button>
+    <button role="tab" id="tab-words" aria-selected="false">2 · Words <span class="sub">from Ruth</span></button>
+  </div>
+
+  <div class="options">
+    <label id="opt-finals-wrap"><input type="checkbox" id="opt-finals" checked> Include final forms</label>
+    <label id="opt-points-wrap" hidden><input type="checkbox" id="opt-points"> Show vowel points</label>
+    <label><input type="checkbox" id="opt-strict"> Full names only (no shortcuts)</label>
+    <label>Hebrew font
+      <select id="opt-font">
+        <option value="Noto Serif Hebrew">Noto Serif Hebrew</option>
+        <option value="Noto Sans Hebrew">Noto Sans Hebrew</option>
+        <option value="Frank Ruhl Libre">Frank Ruhl Libre</option>
+        <option value="David Libre">David Libre</option>
+        <option value="Alef">Alef</option>
+        <option value="Rubik">Rubik</option>
+        <option value="Heebo">Heebo</option>
+        <option value="Assistant">Assistant</option>
+        <option value="Suez One">Suez One</option>
+        <option value="Bellefair">Bellefair</option>
+        <option value="Secular One">Secular One</option>
+        <option value="Amatic SC">Amatic SC (handwritten)</option>
+        <option value="Karantina">Karantina</option>
+        <option value="system">Device default</option>
+      </select>
+    </label>
+  </div>
+
+  <section class="card" aria-label="Flash card">
+    <div class="prompt-label" id="prompt-label">Name this letter</div>
+    <div class="glyphs" id="glyphs" dir="rtl" lang="he"></div>
+    <div class="direction" id="direction" hidden><span>Type the rightmost letter first</span><span class="arrow" aria-hidden="true">←</span></div>
+    <div class="gloss" id="gloss"></div>
+  </section>
+
+  <form class="answer" id="answer-form" autocomplete="off">
+    <input id="answer" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Your answer" placeholder="e.g. aleph, or a">
+    <button class="btn primary" id="btn-go" type="submit">Check</button>
+    <button class="btn" id="btn-skip" type="button">Show answer</button>
+  </form>
+  <p class="hint" id="hint">Press <kbd>Enter</kbd> to check, then <kbd>Enter</kbd> again for the next card.</p>
+
+  <div id="feedback" hidden></div>
+
+  <details class="ref" id="ref">
+    <summary>Letter names and shortcuts</summary>
+    <div class="ref-body">
+      <p>Any listed name spelling is accepted. Shortcuts are the short codes after each name; edit them to suit yourself (separate several with commas). Names like <i>vet</i>, <i>khaf</i>, <i>fe</i> and <i>sin</i> count for their letter. For words, type the letters in reading order: the rightmost Hebrew letter first. Separate letters with spaces, or run shortcuts together if you like (<code>bayz</code> is fine only when it can be read one way).</p>
+      <div class="ref-grid" id="ref-grid"></div>
+      <div class="ref-warn" id="ref-warn" aria-live="polite"></div>
+      <div class="ref-actions">
+        <button class="btn" id="btn-reset-codes" type="button">Restore default shortcuts</button>
+        <button class="btn" id="btn-reset-stats" type="button">Reset score and weak-letter history</button>
+      </div>
+    </div>
+  </details>
+</div>
+
+<script>
+(() => {
+  // ---------- Letters ----------
+  const LETTERS = [
+    { id: "aleph",  ch: "א", name: "Aleph",  names: ["aleph","alef","alep"],                           codes: ["a","'"] },
+    { id: "bet",    ch: "ב", name: "Bet",    names: ["bet","beth","vet","veth","bes"],                 codes: ["b"] },
+    { id: "gimel",  ch: "ג", name: "Gimel",  names: ["gimel","gimmel"],                                codes: ["g"] },
+    { id: "dalet",  ch: "ד", name: "Dalet",  names: ["dalet","daleth","dalit"],                        codes: ["d"] },
+    { id: "he",     ch: "ה", name: "He",     names: ["he","hey","heh","hei","hay"],                    codes: ["h"] },
+    { id: "vav",    ch: "ו", name: "Vav",    names: ["vav","waw","vaw","vov"],                         codes: ["v","w"] },
+    { id: "zayin",  ch: "ז", name: "Zayin",  names: ["zayin","zain"],                                  codes: ["z"] },
+    { id: "chet",   ch: "ח", name: "Chet",   names: ["chet","het","heth","cheth","khet","ches"],       codes: ["ch"] },
+    { id: "tet",    ch: "ט", name: "Tet",    names: ["tet","teth","tes"],                              codes: ["tt"] },
+    { id: "yod",    ch: "י", name: "Yod",    names: ["yod","yud","jod","yodh"],                        codes: ["y","i","j"] },
+    { id: "kaf",    ch: "כ", name: "Kaf",    names: ["kaf","kaph","khaf","chaf","kaf"],                codes: ["k"], fin: "ך" },
+    { id: "lamed",  ch: "ל", name: "Lamed",  names: ["lamed","lamedh","lamid"],                        codes: ["l"] },
+    { id: "mem",    ch: "מ", name: "Mem",    names: ["mem"],                                           codes: ["m"], fin: "ם" },
+    { id: "nun",    ch: "נ", name: "Nun",    names: ["nun","noon"],                                    codes: ["n"], fin: "ן" },
+    { id: "samekh", ch: "ס", name: "Samekh", names: ["samekh","samech","samek","samech"],              codes: ["s"] },
+    { id: "ayin",   ch: "ע", name: "Ayin",   names: ["ayin","ain","ayn"],                              codes: ["o","`"] },
+    { id: "pe",     ch: "פ", name: "Pe",     names: ["pe","peh","pey","pei","fe","feh"],               codes: ["p","f"], fin: "ף" },
+    { id: "tsade",  ch: "צ", name: "Tsade",  names: ["tsade","tsadi","tsadeh","tsaddi","tzadi","tzade","tzaddi","sade","tsadik","tzadik"], codes: ["ts","tz"], fin: "ץ" },
+    { id: "qof",    ch: "ק", name: "Qof",    names: ["qof","qoph","kof","koph","kuf","quf"],           codes: ["q"] },
+    { id: "resh",   ch: "ר", name: "Resh",   names: ["resh","reish"],                                  codes: ["r"] },
+    { id: "shin",   ch: "ש", name: "Shin",   names: ["shin","sin","seen","sheen"],                     codes: ["sh"] },
+    { id: "tav",    ch: "ת", name: "Tav",    names: ["tav","taw","tau","taf"],                         codes: ["t"] },
+  ];
+  const BY_ID = Object.fromEntries(LETTERS.map(l => [l.id, l]));
+  const CHAR_TO_ID = {};
+  LETTERS.forEach(l => { CHAR_TO_ID[l.ch] = l.id; if (l.fin) CHAR_TO_ID[l.fin] = l.id; });
+  const DEFAULT_CODES = Object.fromEntries(LETTERS.map(l => [l.id, l.codes.slice()]));
+
+  // Phase 1 cards: every letter, plus final forms (optional)
+  const LETTER_CARDS = [];
+  LETTERS.forEach(l => {
+    LETTER_CARDS.push({ key: l.ch, ch: l.ch, id: l.id, final: false });
+    if (l.fin) LETTER_CARDS.push({ key: l.fin, ch: l.fin, id: l.id, final: true });
+  });
+
+  // ---------- Words from Ruth (pointed; consonants are derived) ----------
+  const WORDS = [
+    ["רוּת", "Ruth", "1:4"], ["נָעֳמִי", "Naomi", "1:2"], ["בֹּעַז", "Boaz", "2:1"],
+    ["עָרְפָּה", "Orpah", "1:4"], ["אֱלִימֶלֶךְ", "Elimelech", "1:2"], ["מַחְלוֹן", "Mahlon", "1:2"],
+    ["כִּלְיוֹן", "Chilion", "1:2"], ["מוֹאָב", "Moab", "1:1"], ["יְהוּדָה", "Judah", "1:1"],
+    ["לֶחֶם", "bread (as in Beth-lehem)", "1:6"], ["רָעָב", "famine", "1:1"], ["שָׂדֶה", "field", "1:1"],
+    ["חֶסֶד", "steadfast love, kindness", "1:8"], ["גֹּאֵל", "redeemer", "4:14"], ["אִשָּׁה", "woman, wife", "1:5"],
+    ["אִישׁ", "man, husband", "1:1"], ["בֵּן", "son", "4:13"], ["כַּלָּה", "daughter-in-law", "1:6"],
+    ["אֵם", "mother", "1:8"], ["עַם", "people", "1:16"], ["אֱלֹהִים", "God", "1:16"],
+    ["יְהוָה", "the LORD", "1:6"], ["שְׂעֹרִים", "barley", "1:22"], ["קָצִיר", "harvest", "1:22"],
+    ["גֹּרֶן", "threshing floor", "3:2"], ["כָּנָף", "wing, corner of a garment", "2:12"], ["מְנוּחָה", "rest, security", "1:9"],
+    ["אֶרֶץ", "land", "1:1"], ["שַׁדַּי", "the Almighty", "1:20"], ["מָרָא", "Mara (“bitter”)", "1:20"],
+    ["עוֹבֵד", "Obed", "4:17"], ["יִשַׁי", "Jesse", "4:17"], ["דָּוִד", "David", "4:17"],
+    ["פֶּרֶץ", "Perez", "4:12"], ["תָּמָר", "Tamar", "4:12"], ["שַׁעַר", "gate", "4:1"],
+    ["זְקֵנִים", "elders", "4:2"], ["נַעַל", "sandal", "4:7"], ["בַּיִת", "house", "1:9"],
+    ["שֵׁם", "name", "1:2"], ["מָוֶת", "death", "1:17"], ["לֵב", "heart", "3:7"],
+    ["נָשִׁים", "women", "4:14"], ["שׁוּב", "to return", "1:6"], ["הָלַךְ", "to go, walk", "1:16"],
+    ["לִין", "to lodge, spend the night", "1:16"], ["דָּבַק", "to cling", "1:14"], ["חֹמֶץ", "vinegar, sour wine", "2:14"],
+    ["פַּת", "morsel of bread", "2:14"], ["קָלִי", "roasted grain", "2:14"], ["מִשְׁפָּחָה", "clan, family", "2:3"],
+    ["טוֹב", "good", "3:13"], ["טֶרֶם", "before", "3:14"], ["אֵיפָה", "ephah (a dry measure)", "2:17"],
+    ["שֵׁשׁ", "six", "3:15"], ["עֶשֶׂר", "ten", "1:4"], ["שָׁנִים", "years", "1:4"],
+    ["זֶרַע", "offspring, seed", "4:12"], ["עֶרֶב", "evening", "2:17"], ["בֹּקֶר", "morning", "2:7"],
+    ["לַיְלָה", "night", "3:13"], ["נַעֲרָה", "young woman", "2:5"], ["קוֹל", "voice", "1:9"],
+    ["כְּלִי", "vessel, jar", "2:9"], ["פָּנִים", "face", "2:10"], ["יָד", "hand", "1:13"],
+    ["נֶפֶשׁ", "life, soul", "4:15"], ["צִוָּה", "to command", "2:9"], ["חַיִל", "worth, strength", "3:11"],
+  ].map(([pointed, gloss, ref]) => {
+    const clusters = [];
+    for (const c of pointed) {
+      if (c >= "א" && c <= "ת") clusters.push({ base: c, text: c });
+      else if (clusters.length) clusters[clusters.length - 1].text += c;
+    }
+    return { key: pointed, pointed, gloss, ref, clusters, ids: clusters.map(c => CHAR_TO_ID[c.base]) };
+  });
+
+  // ---------- Saved per-viewer settings ----------
+  const STORE = "ruth-alephbet-v1";
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(STORE) || "{}") || {}; } catch (e) { saved = {}; }
+  const state = {
+    mode: saved.mode === "words" ? "words" : "letters",
+    finals: saved.finals !== false,
+    points: !!saved.points,
+    strict: !!saved.strict,
+    font: saved.font || "Noto Serif Hebrew",
+    codes: Object.assign({}, DEFAULT_CODES, saved.codes || {}),
+    misses: saved.misses || {},   // letter id -> weight of past mistakes
+    right: 0, total: 0, streak: 0,
+    card: null, answered: false, lastKey: null,
+  };
+  function persist() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        mode: state.mode, finals: state.finals, points: state.points, strict: state.strict,
+        font: state.font, codes: state.codes, misses: state.misses,
+      }));
+    } catch (e) { /* storage unavailable; settings last for this visit only */ }
+  }
+
+  // ---------- Answer matching ----------
+  const SEP = /[\s,;\/+\-]+/;
+  function normalize(s) {
+    return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/[’‘ʼʾ]/g, "'").replace(/[ʿ]/g, "`")
+      .replace(/\b(final|sofit)\b/g, " ")
+      .trim();
+  }
+  function accepted(id) {
+    const l = BY_ID[id];
+    const set = new Set(l.names);
+    if (!state.strict) (state.codes[id] || []).forEach(c => c && set.add(c));
+    return set;
+  }
+  // Split typed text into letter tokens. Returns null when there are no separators.
+  function tokens(text) {
+    const n = normalize(text);
+    if (!n) return [];
+    return SEP.test(n) ? n.split(SEP).filter(Boolean) : null;
+  }
+  // Unspaced input: can the string be read as the expected letters, in order?
+  function matchRun(str, ids) {
+    const memo = new Map();
+    const go = (i, k) => {
+      if (k === ids.length) return i === str.length;
+      const key = i + ":" + k;
+      if (memo.has(key)) return memo.get(key);
+      let ok = false;
+      for (const t of accepted(ids[k])) {
+        if (str.startsWith(t, i) && go(i + t.length, k + 1)) { ok = true; break; }
+      }
+      memo.set(key, ok);
+      return ok;
+    };
+    return go(0, 0);
+  }
+  // Grade an answer against a list of letter ids. Returns {ok, rows}.
+  function grade(text, ids) {
+    const toks = tokens(text);
+    if (toks === null) {
+      const run = normalize(text);
+      const whole = accepted(ids[0]).has(run) && ids.length === 1;
+      if (whole || matchRun(run, ids)) return { ok: true, rows: ids.map(id => ({ id, you: "", ok: true })), run: true };
+      return { ok: false, rows: ids.map((id, i) => ({ id, you: i === 0 ? run : "", ok: false })), run: true };
+    }
+    const rows = ids.map((id, i) => ({ id, you: toks[i] || "", ok: toks[i] !== undefined && accepted(id).has(toks[i]) }));
+    const extra = toks.slice(ids.length);
+    return { ok: rows.every(r => r.ok) && extra.length === 0, rows, extra };
+  }
+
+  // ---------- Picking cards (letters you miss come up more often) ----------
+  function weightFor(ids) { return 1 + ids.reduce((s, id) => s + (state.misses[id] || 0), 0) / ids.length; }
+  function pick() {
+    let pool = state.mode === "letters"
+      ? LETTER_CARDS.filter(c => state.finals || !c.final).map(c => ({ ...c, ids: [c.id] }))
+      : WORDS;
+    if (pool.length > 1) pool = pool.filter(c => c.key !== state.lastKey);
+    const weights = pool.map(c => weightFor(c.ids));
+    let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) return pool[i]; }
+    return pool[pool.length - 1];
+  }
+
+  // ---------- Rendering ----------
+  const $ = id => document.getElementById(id);
+  const glyphs = $("glyphs"), input = $("answer"), fb = $("feedback");
+
+  function letterLabel(id, ch) {
+    const l = BY_ID[id];
+    return (ch && ch !== l.ch ? "Final " : "") + l.name;
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+  function renderCard() {
+    const c = state.card;
+    fb.hidden = true; fb.innerHTML = "";
+    state.answered = false;
+    input.value = ""; input.disabled = false;
+    $("btn-go").textContent = "Check";
+    $("btn-skip").hidden = false;
+    if (state.mode === "letters") {
+      $("prompt-label").textContent = "Name this letter";
+      glyphs.className = "glyphs";
+      glyphs.innerHTML = `<span class="cl">${c.ch}</span>`;
+      $("direction").hidden = true;
+      $("gloss").textContent = "";
+      input.placeholder = "e.g. aleph, or a";
+    } else {
+      $("prompt-label").textContent = `Spell this word · ${c.clusters.length} letters`;
+      glyphs.className = "glyphs word";
+      glyphs.innerHTML = c.clusters.map((cl, i) => `<span class="cl" data-i="${i}">${state.points ? cl.text : cl.base}</span>`).join("");
+      $("direction").hidden = false;
+      $("gloss").innerHTML = "&nbsp;";
+      input.placeholder = "first letter first, e.g. r v t";
+      trackPosition();
+    }
+    input.focus({ preventScroll: true });
+  }
+
+  // While typing a word, underline the letter you are on (by count of space-separated tokens).
+  function trackPosition() {
+    if (state.mode !== "words" || state.answered) return;
+    const n = normalize(input.value);
+    let idx = 0;
+    if (n && SEP.test(input.value)) {
+      const parts = input.value.split(SEP);
+      idx = parts.length - 1;
+      if (parts[0].trim() === "") idx--;
+    }
+    glyphs.querySelectorAll(".cl").forEach((el, i) => el.classList.toggle("cur", i === Math.max(0, idx)));
+  }
+
+  function renderStats() {
+    $("st-right").textContent = state.right;
+    $("st-total").textContent = state.total;
+    $("st-streak").textContent = state.streak;
+  }
+
+  function finish(gave) {
+    const c = state.card;
+    const res = gave ? { ok: false, rows: c.ids.map(id => ({ id, you: "", ok: false })), gaveUp: true } : grade(input.value, c.ids);
+    if (!gave && !normalize(input.value)) return; // nothing typed yet
+    state.answered = true;
+    state.total++;
+    if (res.ok) { state.right++; state.streak++; } else { state.streak = 0; }
+    // Adjust weak-letter weights: misses add weight, correct answers let it decay.
+    res.rows.forEach(r => {
+      const m = state.misses[r.id] || 0;
+      state.misses[r.id] = r.ok ? Math.max(0, m - 0.5) : Math.min(8, m + 2);
+      if (!state.misses[r.id]) delete state.misses[r.id];
+    });
+    persist(); renderStats();
+
+    input.disabled = true;
+    $("btn-go").textContent = "Next";
+    $("btn-skip").hidden = true;
+
+    const verdict = res.ok ? "Correct" : res.gaveUp ? "Here is the answer" : "Not quite";
+    let html = `<div class="verdict">${verdict}</div>`;
+    if (state.mode === "letters") {
+      const l = BY_ID[c.id];
+      const codes = (state.codes[c.id] || []).filter(Boolean);
+      html += `<div><b>${letterLabel(c.id, c.ch)}</b>${codes.length ? ` · shortcut <code>${esc(codes.join(", "))}</code>` : ""}${!res.gaveUp && !res.ok ? ` · you typed <code>${esc(normalize(input.value))}</code>` : ""}</div>`;
+    } else {
+      $("gloss").innerHTML = `<b>${esc(c.gloss)}</b> · Ruth ${c.ref}`;
+      if (res.run) {
+        glyphs.querySelectorAll(".cl").forEach(el => { el.classList.remove("cur"); el.classList.add(res.ok ? "ok" : "no"); });
+      } else {
+        glyphs.querySelectorAll(".cl").forEach((el, i) => { el.classList.remove("cur"); if (!res.gaveUp) el.classList.add(res.rows[i].ok ? "ok" : "no"); });
+      }
+      const showYou = !res.gaveUp && !res.run;
+      html += `<div class="fb-table"><table><thead><tr><th></th><th>Letter</th><th>Name</th>${showYou ? "<th>You typed</th><th></th>" : ""}</tr></thead><tbody>`;
+      res.rows.forEach((r, i) => {
+        const codes = (state.codes[r.id] || []).filter(Boolean);
+        html += `<tr class="${r.ok ? "ok" : "no"}"><td class="n">${i + 1}</td><td class="h" lang="he">${c.clusters[i].base}</td>`
+          + `<td>${letterLabel(r.id, c.clusters[i].base)}${codes.length ? ` <span style="color:var(--muted)">(${esc(codes[0])})</span>` : ""}</td>`
+          + (showYou ? `<td class="you">${esc(r.you || "—")}</td><td class="mark">${r.ok ? "✓" : "✗"}</td>` : "")
+          + `</tr>`;
+      });
+      html += `</tbody></table></div>`;
+      if (res.extra && res.extra.length) html += `<div>Extra at the end: <code>${esc(res.extra.join(" "))}</code></div>`;
+      if (res.run && !res.ok) html += `<div>You typed <code>${esc(normalize(input.value))}</code>. Put spaces between letters to see which one was off.</div>`;
+    }
+    fb.className = "feedback " + (res.ok ? "good" : "bad");
+    fb.innerHTML = html;
+    fb.hidden = false;
+    $("btn-go").focus({ preventScroll: true });
+  }
+
+  function next() {
+    state.card = pick();
+    state.lastKey = state.card.key;
+    renderCard();
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    $("tab-letters").setAttribute("aria-selected", mode === "letters");
+    $("tab-words").setAttribute("aria-selected", mode === "words");
+    $("opt-finals-wrap").hidden = mode !== "letters";
+    $("opt-points-wrap").hidden = mode !== "words";
+    persist();
+    state.lastKey = null;
+    next();
+  }
+
+  // ---------- Reference table with editable shortcuts ----------
+  function renderRef() {
+    $("ref-grid").innerHTML = LETTERS.map(l => `
+      <div class="ref-item">
+        <div class="rh" lang="he">${l.ch}${l.fin ? ` <small>${l.fin}</small>` : ""}</div>
+        <div class="rn">${l.name}</div>
+        <input id="code-${l.id}" data-id="${l.id}" value="${esc((state.codes[l.id] || []).join(", "))}" aria-label="Shortcuts for ${l.name}" spellcheck="false" autocapitalize="off">
+      </div>`).join("");
+    checkConflicts();
+  }
+  function checkConflicts() {
+    const seen = {};
+    LETTERS.forEach(l => {
+      [...l.names, ...(state.codes[l.id] || [])].forEach(t => { (seen[t] = seen[t] || new Set()).add(l.id); });
+    });
+    const clashes = Object.entries(seen).filter(([, s]) => s.size > 1);
+    const bad = new Set(clashes.flatMap(([, s]) => [...s]));
+    document.querySelectorAll(".ref-item input").forEach(inp => inp.classList.toggle("conflict", bad.has(inp.dataset.id)));
+    $("ref-warn").textContent = clashes.length
+      ? "Used for more than one letter: " + clashes.map(([t, s]) => `“${t}” (${[...s].map(id => BY_ID[id].name).join(", ")})`).join("; ")
+      : "";
+  }
+  $("ref-grid").addEventListener("input", e => {
+    const id = e.target.dataset.id;
+    if (!id) return;
+    state.codes[id] = e.target.value.split(",").map(s => normalize(s)).filter(Boolean);
+    checkConflicts(); persist();
+  });
+  $("btn-reset-codes").addEventListener("click", () => {
+    state.codes = Object.fromEntries(LETTERS.map(l => [l.id, DEFAULT_CODES[l.id].slice()]));
+    persist(); renderRef();
+  });
+  $("btn-reset-stats").addEventListener("click", () => {
+    state.misses = {}; state.right = state.total = state.streak = 0;
+    persist(); renderStats();
+  });
+
+  // ---------- Wiring ----------
+  $("answer-form").addEventListener("submit", e => {
+    e.preventDefault();
+    if (state.answered) next(); else finish(false);
+  });
+  $("btn-skip").addEventListener("click", () => { if (!state.answered) finish(true); });
+  input.addEventListener("input", trackPosition);
+  $("tab-letters").addEventListener("click", () => setMode("letters"));
+  $("tab-words").addEventListener("click", () => setMode("words"));
+  $("opt-finals").checked = state.finals;
+  $("opt-points").checked = state.points;
+  $("opt-strict").checked = state.strict;
+  $("opt-finals").addEventListener("change", e => { state.finals = e.target.checked; persist(); if (!state.answered) next(); });
+  $("opt-points").addEventListener("change", e => {
+    state.points = e.target.checked; persist();
+    if (state.mode === "words") glyphs.querySelectorAll(".cl").forEach((el, i) => { el.textContent = state.points ? state.card.clusters[i].text : state.card.clusters[i].base; });
+  });
+  $("opt-strict").addEventListener("change", e => { state.strict = e.target.checked; persist(); });
+
+  // Hebrew font: load the chosen Google font on demand, then point --font-heb at it.
+  const loadedFonts = new Set(["Noto Serif Hebrew"]);
+  function applyFont(name) {
+    if (![...$("opt-font").options].some(o => o.value === name)) name = "Noto Serif Hebrew";
+    state.font = name;
+    $("opt-font").value = name;
+    const fallback = `"Noto Serif Hebrew", "SBL Hebrew", "Times New Roman", serif`;
+    if (name === "system") { document.documentElement.style.setProperty("--font-heb", `"SBL Hebrew", "Times New Roman", serif`); return; }
+    if (!loadedFonts.has(name)) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g, "+")}:wght@400;700&display=swap`;
+      document.head.appendChild(link);
+      loadedFonts.add(name);
+    }
+    document.documentElement.style.setProperty("--font-heb", `"${name}", ${fallback}`);
+  }
+  $("opt-font").addEventListener("change", e => { applyFont(e.target.value); persist(); });
+  applyFont(state.font);
+
+  // Expose the grader for quick checks in the console.
+  window.__grade = (text, hebrew) => grade(text, [...hebrew].filter(c => CHAR_TO_ID[c]).map(c => CHAR_TO_ID[c])).ok;
+
+  renderRef();
+  renderStats();
+  setMode(state.mode);
+})();
+</script>
