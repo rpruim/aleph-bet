@@ -212,6 +212,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   .glyphs.word { font-size: clamp(2.8rem, 12vw, 4rem); }
   .gloss { font-size: 1rem; }
   .gloss:empty { display: none; }
+  body.typing { padding-bottom: 100vh; }
   .direction { font-size: 0.95rem; }
   form.answer input { flex-basis: 100%; font-size: 1.25rem; padding: 14px; }
   form.answer .btn { flex: 1; padding: 14px 18px; font-size: 1.05rem; }
@@ -1420,6 +1421,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       trackPosition();
     }
     input.focus({ preventScroll: true });
+    pinCard();
   }
 
   // While typing a word, underline the letter you are on (by count of space-separated tokens).
@@ -1608,6 +1610,23 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   });
   $("btn-skip").addEventListener("click", () => { if (!state.answered) finish(true); });
   input.addEventListener("input", trackPosition);
+
+  // Phones: when the keyboard opens, the browser scrolls the answer box into view and can push the
+  // card off the top. While typing, keep the top of the card at the top of the screen instead.
+  const phone = matchMedia("(max-width: 600px)");
+  function pinCard() {
+    if (!phone.matches || document.activeElement !== input) return;
+    const top = $("card").getBoundingClientRect().top + window.scrollY - 8;
+    window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+  }
+  // While typing, add room below the page so it can always scroll far enough to put the card on top.
+  input.addEventListener("focus", () => {
+    document.body.classList.add("typing");
+    pinCard(); setTimeout(pinCard, 350);
+  });
+  input.addEventListener("blur", () => document.body.classList.remove("typing"));
+  // The keyboard animates in; settle again once the visible area has finished shrinking.
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", pinCard);
   $("tab-letters").addEventListener("click", () => setMode("letters"));
   $("tab-words").addEventListener("click", () => setMode("words"));
   $("opt-finals").checked = state.finals;
