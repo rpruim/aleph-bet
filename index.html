@@ -1,5 +1,8 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Aleph-Bet for Ruth</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@400;500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -108,17 +111,20 @@ form.answer input:focus { outline: none; border-color: var(--accent); box-shadow
 .feedback.good .verdict { color: var(--good); }
 .feedback.bad .verdict { color: var(--bad); }
 .fb-table { overflow-x: auto; }
-.fb-table table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
-.fb-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; padding: 4px 8px; }
-.fb-table td { padding: 5px 8px; border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent); vertical-align: middle; }
-.fb-table td.h { font-family: var(--font-heb); font-size: 1.6rem; line-height: 1; width: 2.2em; text-align: center; }
-.fb-table td.you { font-family: var(--font-mono); }
-.fb-table td.mark { width: 1.5em; font-weight: 700; }
-.fb-table td.you .is { font-family: var(--font-ui); color: var(--ink); white-space: nowrap; }
+.fb-table table { border-collapse: collapse; font-size: 0.95rem; }
+.fb-table th { text-align: right; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; padding: 6px 4px 6px 10px; white-space: nowrap; }
+.fb-table td { padding: 6px 8px; text-align: center; vertical-align: top; border-left: 1px solid color-mix(in srgb, var(--ink) 10%, transparent); }
+.fb-table tr + tr td, .fb-table tr + tr th { border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent); }
+.fb-table tr.h td { font-family: var(--font-heb); font-size: 1.9rem; line-height: 1.1; vertical-align: bottom; }
+.fb-table tr.h .n { display: block; font-family: var(--font-ui); font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fb-table tr.name td { white-space: nowrap; }
+.fb-table .code { display: block; color: var(--muted); font-family: var(--font-mono); font-size: 0.85em; }
+.fb-table tr.you td { font-family: var(--font-mono); }
+.fb-table tr.you td.no { color: var(--bad); }
+.fb-table .mark { display: block; font-family: var(--font-ui); font-weight: 700; }
+.fb-table td.ok .mark { color: var(--good); }
+.fb-table tr.you .is { display: block; font-family: var(--font-ui); font-size: 0.85em; color: var(--ink); }
 .heb-inline { font-family: var(--font-heb); font-size: 1.4em; line-height: 1; vertical-align: -0.1em; }
-.fb-table tr.ok td.mark { color: var(--good); }
-.fb-table tr.no td.mark, .fb-table tr.no td.you { color: var(--bad); }
-.fb-table td.n { color: var(--muted); font-variant-numeric: tabular-nums; width: 1.5em; }
 .verse { font-family: var(--font-heb); font-size: 1.45rem; line-height: 1.9; }
 .verse mark { background: var(--accent-wash); color: var(--ink); border-radius: 4px; padding: 0 0.12em; }
 .verse-ref { font-size: 0.85rem; color: var(--muted); margin-top: -6px; }
@@ -137,6 +143,39 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
 .ref-warn { color: var(--bad); font-size: 0.88rem; min-height: 1.2em; }
 .ref-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .ref-actions .btn { padding: 7px 12px; font-size: 0.88rem; }
+
+/* Phones: roomier tap targets, and form controls at 16px+ so iOS does not zoom on focus. */
+@media (max-width: 600px) {
+  body { font-size: 17px; padding-block: 16px 40px; }
+  .wrap { gap: 16px; }
+  h1 { font-size: 1.35rem; }
+  .tabs { width: 100%; }
+  .tabs button { flex: 1; padding: 11px 8px; font-size: 1rem; }
+  /* Settings drop below the card and feedback so the card and answer box sit at the top of the screen. */
+  .options { order: 1; flex-direction: column; gap: 12px; font-size: 1rem; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  details.ref { order: 2; }
+  .options label { min-height: 36px; }
+  .options input { width: 22px; height: 22px; }
+  .options select { font-size: 16px; padding: 8px 10px; flex: 1; }
+  .card { padding: 20px 12px 18px; }
+  .gloss { font-size: 1rem; }
+  .direction { font-size: 0.95rem; }
+  form.answer input { flex-basis: 100%; font-size: 1.25rem; padding: 14px; }
+  form.answer .btn { flex: 1; padding: 14px 18px; font-size: 1.05rem; }
+  .hint { display: none; }
+  .fb-table table { font-size: 1.05rem; }
+  .fb-table td { padding: 8px 6px; }
+  .fb-table tr.h td { font-size: 2.1rem; }
+  .verse { font-size: 1.6rem; }
+  .verse-ref { font-size: 0.95rem; }
+  details.ref summary { padding: 16px; }
+  .ref-body p { font-size: 1rem; }
+  .ref-grid { grid-template-columns: 1fr 1fr; }
+  .ref-item .rn { font-size: 1rem; }
+  .ref-item input { font-size: 16px; padding: 6px 8px; }
+  .ref-actions .btn { flex: 1 1 100%; padding: 12px; font-size: 1rem; }
+}
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -569,7 +608,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       } else {
         $("gloss").innerHTML = "&nbsp;";
       }
-      input.placeholder = "first letter first, e.g. r v t";
+      input.placeholder = "e.g. r v t";
       trackPosition();
     }
     input.focus({ preventScroll: true });
@@ -633,16 +672,21 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
         glyphs.querySelectorAll(".cl").forEach((el, i) => { el.classList.remove("cur"); if (!res.gaveUp) el.classList.add(res.rows[i].ok ? "ok" : "no"); });
       }
       const showYou = !res.gaveUp && !res.run;
-      html += `<div class="fb-table"><table><thead><tr><th></th><th>Letter</th><th>Name</th>${showYou ? "<th>You typed</th><th></th>" : ""}</tr></thead><tbody>`;
-      res.rows.forEach((r, i) => {
-        const codes = (state.codes[r.id] || []).filter(Boolean);
-        const other = !r.ok && r.you ? letterFor(r.you) : null;
-        html += `<tr class="${r.ok ? "ok" : "no"}"><td class="n">${i + 1}</td><td class="h" lang="he">${c.clusters[i].plain}</td>`
-          + `<td>${letterLabel(r.id, c.clusters[i].base)}${codes.length ? ` <span style="color:var(--muted)">(${esc(codes[0])})</span>` : ""}</td>`
-          + (showYou ? `<td class="you">${esc(r.you || "—")}${other ? ` <span class="is">= ${describe(other)}</span>` : ""}</td><td class="mark">${r.ok ? "✓" : "✗"}</td>` : "")
-          + `</tr>`;
-      });
-      html += `</tbody></table></div>`;
+      // One column per letter, running right to left like the word itself; row labels sit at the right.
+      const row = (label, cls, cell) => `<tr class="${cls}"><th scope="row">${label}</th>`
+        + res.rows.map((r, i) => `<td class="${r.ok ? "ok" : "no"}" dir="ltr">${cell(r, i)}</td>`).join("") + `</tr>`;
+      html += `<div class="fb-table" dir="rtl"><table><tbody>`
+        + row("Letter", "h", (r, i) => `<span class="n">${i + 1}</span><span lang="he">${c.clusters[i].plain}</span>`)
+        + row("Name", "name", (r, i) => {
+            const codes = (state.codes[r.id] || []).filter(Boolean);
+            return `${letterLabel(r.id, c.clusters[i].base)}${codes.length ? `<span class="code">${esc(codes[0])}</span>` : ""}`;
+          })
+        + (showYou ? row("Typed", "you", r => {
+            const other = !r.ok && r.you ? letterFor(r.you) : null;
+            return `<span class="mark">${r.ok ? "✓" : "✗"}</span>${esc(r.you || "—")}`
+              + (other ? `<span class="is"><span class="heb-inline" lang="he">${other.ch}</span> ${other.name}</span>` : "");
+          }) : "")
+        + `</tbody></table></div>`;
       if (res.extra && res.extra.length) html += `<div>Extra at the end: <code>${esc(res.extra.join(" "))}</code></div>`;
       if (res.run && !res.ok) html += `<div>You typed <code>${esc(normalize(input.value))}</code>. Put spaces between letters to see which one was off.</div>`;
       if (c.at !== undefined) html += `<div class="verse" id="verse" dir="rtl" lang="he"></div><div class="verse-ref">Ruth ${c.ref}</div>`;
