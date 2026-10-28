@@ -148,6 +148,27 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
 .ref-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .ref-actions .btn { padding: 7px 12px; font-size: 0.88rem; }
 
+/* Wide screens: card and answer box on the left, feedback beside them, so a whole round fits without scrolling. */
+@media (min-width: 960px) {
+  body { padding-block: 16px 32px; }
+  .wrap {
+    max-width: 1160px; display: grid; gap: 14px 28px; align-items: start;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto 1fr auto;
+    grid-template-areas: "head head" "tabs opts" "card fb" "form fb" "hint fb" ". fb" "ref ref";
+  }
+  header { grid-area: head; }
+  .tabs { grid-area: tabs; }
+  .options { grid-area: opts; align-self: center; }
+  .card { grid-area: card; padding: 18px 20px 16px; gap: 6px; }
+  form.answer { grid-area: form; }
+  .hint { grid-area: hint; margin: 0; }
+  #feedback { grid-area: fb; }
+  details.ref { grid-area: ref; }
+  .glyphs { font-size: clamp(4rem, 15vh, 7.5rem); }
+  .glyphs.word { font-size: clamp(3rem, 11vh, 5rem); }
+}
+
 /* Phones: roomier tap targets, and form controls at 16px+ so iOS does not zoom on focus. */
 @media (max-width: 600px) {
   body { font-size: 17px; padding-block: 16px 40px; }
