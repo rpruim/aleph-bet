@@ -207,8 +207,11 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   .options label { min-height: 36px; }
   .options input { width: 22px; height: 22px; }
   .options select { font-size: 16px; padding: 8px 10px; flex: 1; }
-  .card { padding: 20px 12px 18px; }
+  .card { padding: 12px 12px 12px; gap: 4px; }
+  .glyphs { font-size: clamp(4rem, 19vw, 6rem); line-height: 1.15; min-height: 1.15em; }
+  .glyphs.word { font-size: clamp(2.8rem, 12vw, 4rem); }
   .gloss { font-size: 1rem; }
+  .gloss:empty { display: none; }
   .direction { font-size: 0.95rem; }
   form.answer input { flex-basis: 100%; font-size: 1.25rem; padding: 14px; }
   form.answer .btn { flex: 1; padding: 14px 18px; font-size: 1.05rem; }
