@@ -213,6 +213,9 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   .gloss { font-size: 1rem; }
   .gloss:empty { display: none; }
   body.typing { padding-bottom: 100vh; }
+  /* Without this, the browser keeps the settings below in place when the feedback appears,
+     scrolling the card off the top. */
+  html { overflow-anchor: none; }
   .direction { font-size: 0.95rem; }
   form.answer input { flex-basis: 100%; font-size: 1.25rem; padding: 14px; }
   form.answer .btn { flex: 1; padding: 14px 18px; font-size: 1.05rem; }
@@ -1352,11 +1355,34 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       const run = normalize(text);
       const whole = accepted(ids[0]).has(run) && ids.length === 1;
       if (whole || matchRun(run, ids)) return { ok: true, rows: ids.map(id => ({ id, you: "", ok: true })), run: true };
+      // Wrong, but maybe it can still be read letter by letter; then grade it as if it were spaced.
+      const split = ids.length > 1 ? splitRun(run, ids) : null;
+      if (split) return { ...gradeTokens(split, ids), readAs: split.join(" ") };
       return { ok: false, rows: ids.map((id, i) => ({ id, you: i === 0 ? run : "", ok: false })), run: true };
     }
+    return gradeTokens(toks, ids);
+  }
+  function gradeTokens(toks, ids) {
     const rows = ids.map((id, i) => ({ id, you: toks[i] || "", ok: toks[i] !== undefined && accepted(id).has(toks[i]) }));
     const extra = toks.slice(ids.length);
     return { ok: rows.every(r => r.ok) && extra.length === 0, rows, extra };
+  }
+  // Split unspaced input into letter names and shortcuts. Returns the one reading if there is only one.
+  // If there are several (e.g. "sh" = Shin, or Samekh + He), keep the reading closest to the expected
+  // letters, but only when no other reading is just as close. Otherwise return null.
+  function splitRun(str, ids) {
+    const vocab = [...new Set(LETTERS.flatMap(l => [...accepted(l.id)]))];
+    const readings = [];
+    const go = (i, acc) => {
+      if (readings.length >= 200) return;
+      if (i === str.length) { readings.push(acc.slice()); return; }
+      for (const t of vocab) if (str.startsWith(t, i)) { acc.push(t); go(i + t.length, acc); acc.pop(); }
+    };
+    go(0, []);
+    if (readings.length <= 1) return readings[0] || null;
+    const score = r => r.filter((t, k) => k < ids.length && accepted(ids[k]).has(t)).length - Math.abs(r.length - ids.length);
+    readings.sort((a, b) => score(b) - score(a));
+    return score(readings[0]) > score(readings[1]) ? readings[0] : null;
   }
 
   // ---------- Picking cards (letters you miss come up more often) ----------
@@ -1522,6 +1548,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
               + (other ? `<span class="is"><span class="heb-inline" lang="he">${other.ch}</span> ${other.name}</span>` : "");
           }) : "")
         + `</tbody></table></div>`;
+      if (res.readAs) html += `<div>Read your answer as <code>${esc(res.readAs)}</code></div>`;
       if (res.extra && res.extra.length) html += `<div>Extra at the end: <code>${esc(res.extra.join(" "))}</code></div>`;
       if (res.run && !res.ok) html += `<div>You typed <code>${esc(normalize(input.value))}</code>. Put spaces between letters to see which one was off.</div>`;
       if (c.at !== undefined) html += `<div class="verse" id="verse" dir="rtl" lang="he"></div><div class="verse-ref">Ruth ${c.ref}</div>`;
@@ -1619,12 +1646,13 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     const top = $("card").getBoundingClientRect().top + window.scrollY - 8;
     window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
   }
-  // While typing, add room below the page so it can always scroll far enough to put the card on top.
+  // Add room below the page so it can always scroll far enough to put the card on top. The room stays
+  // once added: taking it away when the answer box loses focus shifted the buttons under a finger mid-tap,
+  // so a tap on Check could land on "Show answer".
   input.addEventListener("focus", () => {
     document.body.classList.add("typing");
     pinCard(); setTimeout(pinCard, 350);
   });
-  input.addEventListener("blur", () => document.body.classList.remove("typing"));
   // The keyboard animates in; settle again once the visible area has finished shrinking.
   if (window.visualViewport) window.visualViewport.addEventListener("resize", pinCard);
   $("tab-letters").addEventListener("click", () => setMode("letters"));
