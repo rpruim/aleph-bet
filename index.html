@@ -141,6 +141,22 @@ details.ref { background: var(--surface); border: 1px solid var(--line); border-
 details.ref summary { cursor: pointer; padding: 14px 16px; font-weight: 700; }
 details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 .ref-body p { margin: 0; color: var(--muted); font-size: 0.92rem; max-width: 65ch; }
+.scores { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.scores h2 { margin: 0; font-size: 1rem; }
+.scores p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+.scores-grid { direction: rtl; display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; }
+.score-item { direction: ltr; display: grid; grid-template-columns: 2.2rem 1fr auto; align-items: baseline; gap: 0 8px; padding: 6px 8px 8px; border-radius: 8px; border: 1px solid var(--line); }
+.score-item .rh { font-family: var(--font-heb); font-size: 1.8rem; line-height: 1; text-align: center; grid-row: span 2; align-self: center; }
+.score-item .sn { font-weight: 700; font-size: 0.88rem; }
+.score-item .sp { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.score-item .sc { grid-column: 2 / 4; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.score-item .bar { grid-column: 1 / 4; height: 4px; margin-top: 6px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.score-item .bar span { display: block; height: 100%; background: var(--muted); }
+.score-item.good .sp { color: var(--good); } .score-item.good .bar span { background: var(--good); }
+.score-item.mid .sp { color: var(--accent); } .score-item.mid .bar span { background: var(--accent); }
+.score-item.bad .sp { color: var(--bad); } .score-item.bad .bar span { background: var(--bad); }
+.score-item.none .sp { color: var(--muted); font-weight: 400; }
+
 /* Letters flow right to left, aleph at top right; each tile's own contents stay left to right. */
 .ref-grid { direction: rtl; }
 .ref-item { direction: ltr; }
@@ -161,8 +177,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   .wrap {
     max-width: 1160px; display: grid; gap: 14px 28px; align-items: start;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto auto 1fr auto;
-    grid-template-areas: "head head" "tabs opts" "card fb" "form fb" "hint fb" ". fb" "ref ref";
+    grid-template-rows: auto auto auto auto auto 1fr auto auto;
+    grid-template-areas: "head head" "tabs opts" "card fb" "form fb" "hint fb" ". fb" "scores scores" "ref ref";
   }
   header { grid-area: head; }
   .tabs { grid-area: tabs; }
@@ -171,6 +187,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   form.answer { grid-area: form; }
   .hint { grid-area: hint; margin: 0; }
   #feedback { grid-area: fb; }
+  .scores { grid-area: scores; }
   details.ref { grid-area: ref; }
   .glyphs { font-size: clamp(4rem, 15vh, 7.5rem); }
   .glyphs.word { font-size: clamp(3rem, 11vh, 5rem); }
@@ -246,6 +263,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     </label>
     <label id="opt-points-wrap" hidden><input type="checkbox" id="opt-points"> Show vowel points</label>
     <label><input type="checkbox" id="opt-strict"> Full names only (no shortcuts)</label>
+    <label><input type="checkbox" id="opt-scores"> Show score for each letter</label>
     <label>Hebrew font
       <select id="opt-font">
         <option value="Noto Serif Hebrew">Noto Serif Hebrew</option>
@@ -282,6 +300,12 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
 
   <div id="feedback" hidden></div>
 
+  <section class="scores" id="scores" aria-label="Score for each letter" hidden>
+    <h2>Score for each letter</h2>
+    <p>Right out of tries, counting letters in words too. Kept on this device until you reset it.</p>
+    <div class="scores-grid" id="scores-grid"></div>
+  </section>
+
   <details class="ref" id="ref">
     <summary>Letter names and shortcuts</summary>
     <div class="ref-body">
@@ -290,7 +314,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       <div class="ref-warn" id="ref-warn" aria-live="polite"></div>
       <div class="ref-actions">
         <button class="btn" id="btn-reset-codes" type="button">Restore default shortcuts</button>
-        <button class="btn" id="btn-reset-stats" type="button">Reset score and weak-letter history</button>
+        <button class="btn" id="btn-reset-stats" type="button">Reset all scores and weak-letter history</button>
       </div>
     </div>
   </details>
@@ -1265,6 +1289,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     font: saved.font || "Noto Serif Hebrew",
     codes: Object.assign({}, DEFAULT_CODES, saved.codes || {}),
     misses: saved.misses || {},   // letter id -> weight of past mistakes
+    tally: saved.tally || {},     // letter id -> [right, tries], kept across visits
+    showScores: !!saved.showScores,
     right: 0, total: 0, streak: 0,
     card: null, answered: false, lastKey: null,
   };
@@ -1274,6 +1300,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
         mode: state.mode, finals: state.finals, points: state.points, strict: state.strict,
         source: state.source, pos: state.pos,
         font: state.font, codes: state.codes, misses: state.misses,
+        tally: state.tally, showScores: state.showScores,
       }));
     } catch (e) { /* storage unavailable; settings last for this visit only */ }
   }
@@ -1411,6 +1438,24 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     $("st-streak").textContent = state.streak;
   }
 
+  // Score for each letter: right out of tries, laid out right to left like the reference list.
+  function renderScores() {
+    $("scores").hidden = !state.showScores;
+    if (!state.showScores) return;
+    $("scores-grid").innerHTML = LETTERS.map(l => {
+      const [right, tries] = state.tally[l.id] || [0, 0];
+      const pct = tries ? Math.round(100 * right / tries) : null;
+      const level = pct === null ? "none" : pct >= 80 ? "good" : pct >= 50 ? "mid" : "bad";
+      return `<div class="score-item ${level}" title="${l.name}: ${right} right out of ${tries}">
+        <div class="rh" lang="he">${l.ch}</div>
+        <div class="sn">${l.name}</div>
+        <div class="sp">${pct === null ? "—" : pct + "%"}</div>
+        <div class="sc">${tries ? `${right} of ${tries}` : "not yet seen"}</div>
+        <div class="bar"><span style="width:${pct || 0}%"></span></div>
+      </div>`;
+    }).join("");
+  }
+
   function finish(gave) {
     const c = state.card;
     const res = gave ? { ok: false, rows: c.ids.map(id => ({ id, you: "", ok: false })), gaveUp: true } : grade(input.value, c.ids);
@@ -1424,7 +1469,12 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       state.misses[r.id] = r.ok ? Math.max(0, m - 0.5) : Math.min(8, m + 2);
       if (!state.misses[r.id]) delete state.misses[r.id];
     });
-    persist(); renderStats();
+    // Per-letter score. An unspaced wrong answer can't say which letter was off, so it isn't counted.
+    if (!(res.run && !res.ok)) res.rows.forEach(r => {
+      const t = state.tally[r.id] || (state.tally[r.id] = [0, 0]);
+      t[0] += r.ok ? 1 : 0; t[1]++;
+    });
+    persist(); renderStats(); renderScores();
 
     input.disabled = true;
     $("btn-go").textContent = "Next";
@@ -1544,8 +1594,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     persist(); renderRef();
   });
   $("btn-reset-stats").addEventListener("click", () => {
-    state.misses = {}; state.right = state.total = state.streak = 0;
-    persist(); renderStats();
+    state.misses = {}; state.tally = {}; state.right = state.total = state.streak = 0;
+    persist(); renderStats(); renderScores();
   });
 
   // ---------- Wiring ----------
@@ -1560,6 +1610,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   $("opt-finals").checked = state.finals;
   $("opt-points").checked = state.points;
   $("opt-strict").checked = state.strict;
+  $("opt-scores").checked = state.showScores;
   $("opt-finals").addEventListener("change", e => { state.finals = e.target.checked; persist(); if (!state.answered) next(); });
   $("opt-points").addEventListener("change", e => {
     state.points = e.target.checked; persist();
@@ -1575,6 +1626,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     state.pos = CHAPTER_START[ch - 1]; persist(); next();
   });
   $("opt-strict").addEventListener("change", e => { state.strict = e.target.checked; persist(); });
+  $("opt-scores").addEventListener("change", e => { state.showScores = e.target.checked; persist(); renderScores(); });
 
   // Hebrew font: load the chosen Google font on demand, then point --font-heb at it.
   const loadedFonts = new Set(["Noto Serif Hebrew"]);
@@ -1601,6 +1653,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
 
   renderRef();
   renderStats();
+  renderScores();
   setMode(state.mode);
 })();
 </script>
