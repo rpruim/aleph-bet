@@ -306,7 +306,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
 
   <section class="scores" id="scores" aria-label="Score for each letter" hidden>
     <h2>Score for each letter</h2>
-    <p>Right out of tries, counting letters in words too. Kept on this device until you reset it.</p>
+    <p>Number correct out of number of attempts, counting letters in words too. Kept on this device until you reset it.</p>
     <div class="scores-grid" id="scores-grid"></div>
   </section>
 
@@ -1451,7 +1451,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       const [right, tries] = state.tally[l.id] || [0, 0];
       const pct = tries ? Math.round(100 * right / tries) : null;
       const level = pct === null ? "none" : pct >= 80 ? "good" : pct >= 50 ? "mid" : "bad";
-      return `<div class="score-item ${level}" title="${l.name}: ${right} right out of ${tries}">
+      return `<div class="score-item ${level}" title="${l.name}: ${right} correct out of ${tries} attempts">
         <div class="rh" lang="he">${l.ch}</div>
         <div class="sn">${l.name}</div>
         <div class="sp">${pct === null ? "—" : pct + "%"}</div>
