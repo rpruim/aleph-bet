@@ -354,7 +354,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       <p>Any listed name spelling is accepted. Shortcuts are the short codes after each name; edit them to suit yourself (separate several with commas). Names like <i>vet</i>, <i>khaf</i> and <i>fe</i> count for their letter. Shin and Sin are separate cards, and their dot is always shown, even with vowel points off. For words, type the letters in reading order: the rightmost Hebrew letter first. Separate letters with spaces, or run shortcuts together if you like (<code>bayz</code> is fine only when it can be read one way).</p>
       <div class="ref-grid" id="ref-grid"></div>
       <h3 class="ref-h">Mode 3: reading with vowels</h3>
-      <p>Type each letter by its sound, then the vowel mark written on it, working right to left: מֹשֶׁה is <code>m oh sh e</code>. Letter names and the editable shortcuts above aren’t used here. Letters that sound alike share a code (Tet and Tav are both <code>t</code>), and a dagesh dot decides <code>b</code>/<code>v</code>, <code>k</code>/<code>kh</code> and <code>p</code>/<code>f</code>. A dot inside a vav (וּ) is the vowel shureq; a dagesh is otherwise not typed. Helper letters that aren’t sounded are left out, though their vowel is still typed: a vav carrying holam or shureq (רוּת is <code>r u t</code>), a yod after hiriq, tsere or segol (בֵּית is <code>b ee t</code>), and a final he with no vowel (יְהוּדָה ends <code>d aa</code>).</p>
+      <p>Type each letter by its sound, then the vowel mark written on it, working right to left: מֹשֶׁה is <code>m oh sh e</code>. Letter names and the editable shortcuts above aren’t used here. Letters that sound alike share a code (Tet and Tav are both <code>t</code>), and a dagesh dot decides <code>b</code>/<code>v</code>, <code>k</code>/<code>kh</code> and <code>p</code>/<code>f</code>. A dot inside a vav (וּ) is the vowel shureq; a dagesh is otherwise not typed. Helper letters that aren’t sounded are left out, though their vowel is still typed: a vav carrying holam or shureq (רוּת is <code>r u t</code>), a yod after hiriq, tsere or segol (בֵּית is <code>b ee t</code>), and a final he with no vowel (יְהוּדָה ends <code>d aa</code>). A sheva on the last letter is silent too and isn’t typed (אֱלִימֶלֶךְ ends <code>l e kh</code>).</p>
       <div class="ref-grid" id="sound-grid"></div>
       <h3 class="ref-h">Vowel marks</h3>
       <div class="ref-grid" id="vowel-grid"></div>
@@ -1401,6 +1401,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       } else if (cl.base === "ה") {
         cl.silent = bare && last && i > 0;
       }
+      // A sheva on the last letter (ךְ, תְּ) only marks that the word ends in a consonant; it isn't sounded.
+      cl.endSheva = last && i > 0 && cl.vowels.includes("v:sheva");
     });
     return clusters;
   }
@@ -1414,7 +1416,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
         const [snd, name] = soundOf(cl);
         const fin = cl.base === BY_ID[cl.id].fin ? "Final " : "";
         if (!cl.silent) slots.push({ id: cl.id, key: "c:" + snd, ci, glyph: cl.plain, label: fin + name, cons: true });
-        cl.vowels.forEach(v => slots.push({ id: v, key: v, ci, glyph: vowelGlyph(v), label: VBY[v].name }));
+        cl.vowels.forEach(v => { if (!(cl.endSheva && v === "v:sheva")) slots.push({ id: v, key: v, ci, glyph: vowelGlyph(v), label: VBY[v].name }); });
       } else {
         slots.push({ id: cl.id, key: cl.id, ci, glyph: cl.plain, label: letterLabel(cl.id, cl.base) });
       }
@@ -1747,7 +1749,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
           if (c.clusters[i].silent) el.classList.add("c-silent");
           if (res.gaveUp) return;
           if (cons.length) el.classList.add("c-" + verdictOf(cons));
-          el.classList.add("v-" + (vows.length ? verdictOf(vows) : cons.length ? verdictOf(cons) : "none"));
+          el.classList.add("v-" + (vows.length ? verdictOf(vows) : cons.length && !c.clusters[i].endSheva ? verdictOf(cons) : "none"));
         });
       } else {
         glyphs.querySelectorAll(".cl").forEach((el, i) => {
@@ -1785,6 +1787,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       const silent = state.mode === "vowels" ? c.clusters.filter(cl => cl.silent) : [];
       if (silent.length) html += `<div>Silent helper letter${silent.length > 1 ? "s" : ""}, not typed: `
         + silent.map(cl => `<span class="heb-inline" lang="he">${cl.base}</span> ${BY_ID[cl.id].name}`).join(", ") + `</div>`;
+      if (state.mode === "vowels" && c.clusters[c.clusters.length - 1].endSheva)
+        html += `<div>The sheva on the last letter is silent, so it isn’t typed.</div>`;
       if (res.readAs) html += `<div>Read your answer as <code>${esc(res.readAs)}</code></div>`;
       if (extras.length) html += `<div>Extra, not in the word: <code>${esc(extras.map(x => x.you).join(" "))}</code></div>`;
       if (res.run && !res.ok) html += `<div>You typed <code>${esc(normalize(input.value))}</code>. Put spaces between letters to see which one was off.</div>`;
