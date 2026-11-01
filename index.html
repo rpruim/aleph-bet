@@ -140,6 +140,9 @@ form.answer input:focus { outline: none; border-color: var(--accent); box-shadow
 .fb-table tr.you td.no { color: var(--bad); }
 .fb-table .mark { display: block; font-family: var(--font-ui); font-weight: 700; }
 .fb-table td.ok .mark { color: var(--good); }
+.fb-table td.extra { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.fb-table tr.name td.extra { white-space: normal; max-width: 6em; color: var(--bad); font-size: 0.85em; }
+.fb-table td.extra .none { color: var(--muted); }
 .fb-table tr.you .is { display: block; font-family: var(--font-ui); font-size: 0.85em; color: var(--ink); }
 .heb-inline { font-family: var(--font-heb); font-size: 1.4em; line-height: 1; vertical-align: -0.1em; }
 .verse { font-family: var(--font-heb); font-size: 1.45rem; line-height: 1.9; }
@@ -1496,10 +1499,34 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     }
     return flat.length === toks.length ? gradeTokens(toks, ids) : { ...gradeTokens(flat, ids), readAs: flat.join(" ") };
   }
+  // Line typed tokens up with the expected letters, allowing for an extra or a missing entry,
+  // so one slip doesn't knock every later letter out of place. Returns {cost, ops}, where each op is
+  // ["match" | "swap", tokenIndex, slotIndex], ["extra", tokenIndex] or ["missing", slotIndex].
+  function align(toks, ids) {
+    const n = toks.length, m = ids.length, acc = ids.map(accepted), hit = (t, k) => acc[k].has(toks[t]);
+    const d = Array.from({ length: n + 1 }, (_, t) => Array.from({ length: m + 1 }, (_, k) => t + k));
+    for (let t = 1; t <= n; t++) for (let k = 1; k <= m; k++)
+      d[t][k] = Math.min(d[t - 1][k - 1] + (hit(t - 1, k - 1) ? 0 : 1), d[t - 1][k] + 1, d[t][k - 1] + 1);
+    const ops = [];
+    let t = n, k = m;
+    while (t || k) {
+      if (t && k && d[t][k] === d[t - 1][k - 1] + (hit(t - 1, k - 1) ? 0 : 1)) { t--; k--; ops.push([hit(t, k) ? "match" : "swap", t, k]); }
+      else if (t && d[t][k] === d[t - 1][k] + 1) { t--; ops.push(["extra", t]); }
+      else { k--; ops.push(["missing", k]); }
+    }
+    return { cost: d[n][m], ops: ops.reverse() };
+  }
+  // Rows follow the expected letters; extras records typed entries that aren't in the word,
+  // each with the slot it came before (ids.length = after the last letter).
   function gradeTokens(toks, ids) {
-    const rows = ids.map((id, i) => ({ id, you: toks[i] || "", ok: toks[i] !== undefined && accepted(id).has(toks[i]) }));
-    const extra = toks.slice(ids.length);
-    return { ok: rows.every(r => r.ok) && extra.length === 0, rows, extra };
+    const rows = ids.map(id => ({ id, you: "", ok: false })), extras = [];
+    let k = 0;
+    for (const [op, a, b] of align(toks, ids).ops) {
+      if (op === "extra") extras.push({ before: k, you: toks[a] });
+      else if (op === "missing") k = a + 1;
+      else { rows[b] = { id: ids[b], you: toks[a], ok: op === "match" }; k = b + 1; }
+    }
+    return { ok: rows.every(r => r.ok) && extras.length === 0, rows, extras };
   }
   // Split unspaced input into letter names and shortcuts. Returns the one reading if there is only one.
   // If there are several (e.g. "sh" = Shin, or Samekh + He), keep the reading closest to the expected
@@ -1519,7 +1546,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     };
     go(0, []);
     if (readings.length <= 1) return readings[0] || null;
-    const score = r => r.filter((t, k) => k < ids.length && accepted(ids[k]).has(t)).length - Math.abs(r.length - ids.length);
+    const score = r => -align(r, ids).cost;
     readings.sort((a, b) => score(b) - score(a));
     return score(readings[0]) > score(readings[1]) ? readings[0] : null;
   }
@@ -1706,27 +1733,37 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
           if (!res.gaveUp) el.classList.add(res.rows.every((r, k) => r.ok || c.slots[k].ci !== i) ? "ok" : "no");
         });
       }
-      const showYou = !res.gaveUp && !res.run;
+      const showYou = !res.gaveUp && !res.run, extras = showYou ? res.extras || [] : [];
       // One column per letter, running right to left like the word itself; row labels sit at the right.
-      const row = (label, cls, cell) => `<tr class="${cls}"><th scope="row">${label}</th>`
-        + res.rows.map((r, i) => `<td class="${r.ok ? "ok" : "no"}" dir="ltr">${cell(r, i)}</td>`).join("") + `</tr>`;
+      // Typed entries that aren't in the word get their own column where they were typed.
+      const cols = [];
+      res.rows.forEach((r, i) => {
+        extras.filter(x => x.before === i).forEach(x => cols.push({ extra: x }));
+        cols.push({ r, i });
+      });
+      extras.filter(x => x.before === res.rows.length).forEach(x => cols.push({ extra: x }));
+      const row = (label, cls, cell, extraCell) => `<tr class="${cls}"><th scope="row">${label}</th>`
+        + cols.map(col => col.extra ? `<td class="no extra" dir="ltr">${extraCell(col.extra)}</td>`
+          : `<td class="${col.r.ok ? "ok" : "no"}" dir="ltr">${cell(col.r, col.i)}</td>`).join("") + `</tr>`;
+      const typedCell = (ok, you) => {
+        const other = !ok && you ? letterFor(you) : null;
+        return `<span class="mark">${ok ? "✓" : "✗"}</span>${esc(you || "—")}`
+          + (other ? `<span class="is"><span class="heb-inline" lang="he">${other.ch}</span> ${other.name}</span>` : "");
+      };
       html += `<div class="fb-table" dir="rtl"><table><tbody>`
-        + row(state.mode === "vowels" ? "Mark" : "Letter", "h", (r, i) => `<span class="n">${i + 1}</span><span lang="he">${c.slots[i].glyph}</span>`)
+        + row(state.mode === "vowels" ? "Mark" : "Letter", "h", (r, i) => `<span class="n">${i + 1}</span><span lang="he">${c.slots[i].glyph}</span>`,
+            () => `<span class="n">+</span><span class="none">—</span>`)
         + row("Name", "name", (r, i) => {
             const codes = codesFor(r.id);
             return `${c.slots[i].label}${codes.length ? `<span class="code">${esc(codes[0])}</span>` : ""}`;
-          })
-        + (showYou ? row("Typed", "you", r => {
-            const other = !r.ok && r.you ? letterFor(r.you) : null;
-            return `<span class="mark">${r.ok ? "✓" : "✗"}</span>${esc(r.you || "—")}`
-              + (other ? `<span class="is"><span class="heb-inline" lang="he">${other.ch}</span> ${other.name}</span>` : "");
-          }) : "")
+          }, () => `Extra`)
+        + (showYou ? row("Typed", "you", r => typedCell(r.ok, r.you), x => typedCell(false, x.you)) : "")
         + `</tbody></table></div>`;
       const silent = state.mode === "vowels" ? c.clusters.filter(cl => cl.silent) : [];
       if (silent.length) html += `<div>Silent helper letter${silent.length > 1 ? "s" : ""}, not typed: `
         + silent.map(cl => `<span class="heb-inline" lang="he">${cl.base}</span> ${BY_ID[cl.id].name}`).join(", ") + `</div>`;
       if (res.readAs) html += `<div>Read your answer as <code>${esc(res.readAs)}</code></div>`;
-      if (res.extra && res.extra.length) html += `<div>Extra at the end: <code>${esc(res.extra.join(" "))}</code></div>`;
+      if (extras.length) html += `<div>Extra, not in the word: <code>${esc(extras.map(x => x.you).join(" "))}</code></div>`;
       if (res.run && !res.ok) html += `<div>You typed <code>${esc(normalize(input.value))}</code>. Put spaces between letters to see which one was off.</div>`;
       if (c.at !== undefined) html += `<div class="verse" id="verse" dir="rtl" lang="he"></div><div class="verse-ref">Ruth ${c.ref}</div>`;
     }
@@ -1895,8 +1932,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   applyFont(state.font);
 
   // Expose the grader for quick checks in the console.
-  window.__grade = (text, hebrew) =>
-    grade(text, slotsFor(parseClusters(hebrew), state.mode === "vowels").map(sl => sl.key)).ok;
+  window.__gradeFull = (text, hebrew) => grade(text, slotsFor(parseClusters(hebrew), state.mode === "vowels").map(sl => sl.key));
+  window.__grade = (text, hebrew) => window.__gradeFull(text, hebrew).ok;
 
   renderRef();
   renderStats();
