@@ -180,6 +180,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
 .ref-item { display: grid; grid-template-columns: 2.4rem 1fr; align-items: center; gap: 4px 10px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); }
 .ref-item .rh { font-family: var(--font-heb); font-size: 2rem; line-height: 1; text-align: center; grid-row: span 2; }
 .ref-item .rh small { font-size: 1.1rem; color: var(--muted); }
+#sound-grid .ref-item { grid-template-columns: 4.2rem 1fr; }
+#sound-grid .ref-item .rh { font-size: 1.7rem; white-space: nowrap; }
 .ref-item .rn { font-weight: 700; font-size: 0.92rem; }
 .ref-item input { font-family: var(--font-mono); font-size: 0.85rem; padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; min-width: 0; }
 .ref-item input.conflict { border-color: var(--bad); }
@@ -1594,9 +1596,12 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   function letterFor(tok) {
     if (state.mode === "vowels") {
       const vs = VOWELS.filter(v => v.codes.includes(tok));
-      if (vs.length) return { ch: vowelGlyph(vs[0].id), name: vs.map(v => v.name).join(" or ") };
+      if (vs.length) return { pairs: vs.map(v => [vowelGlyph(v.id), v.name]) };
+      // A shared sound lists each letter beside its own name: ט Tet or ת Tav.
       const snd = Object.values(SOUNDS).find(x => x.codes.includes(tok));
-      return snd ? { ch: snd.letters, name: snd.name } : null;
+      if (!snd) return null;
+      const chs = snd.letters.split(" "), names = snd.name.split(/,? or /);
+      return { pairs: chs.length === names.length ? chs.map((ch, i) => [ch, names[i]]) : [[snd.letters, snd.name]] };
     }
     return LETTERS.find(l => l.names.includes(tok) || codesFor(l.id).includes(tok)) || null;
   }
@@ -1765,12 +1770,13 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       const typedCell = (ok, you) => {
         const other = !ok && you ? letterFor(you) : null;
         return `<span class="mark">${ok ? "✓" : "✗"}</span>${esc(you || "—")}`
-          + (other ? `<span class="is"><span class="heb-inline" lang="he">${other.ch}</span> ${other.name}</span>` : "");
+          + (other ? `<span class="is">${(other.pairs || [[other.ch, other.name]])
+              .map(([ch, name]) => `<span class="heb-inline" lang="he">${ch}</span>&nbsp;${name}`).join(" or&nbsp;")}</span>` : "");
       };
       html += `<div class="fb-table" dir="rtl"><table><tbody>`
         + row(state.mode === "vowels" ? "Mark" : "Letter", "h", (r, i) => `<span class="n">${i + 1}</span><span lang="he">${c.slots[i].glyph}</span>`,
             () => `<span class="n">+</span><span class="none">—</span>`)
-        + row("Name", "name", (r, i) => {
+        + row(state.mode === "vowels" ? "Sound" : "Name", "name", (r, i) => {
             const codes = codesFor(r.id);
             return `${c.slots[i].label}${codes.length ? `<span class="code">${esc(codes[0])}</span>` : ""}`;
           }, () => `Extra`)
@@ -1840,7 +1846,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       </div>`).join("");
     $("sound-grid").innerHTML = Object.values(SOUNDS).map(x => `
       <div class="ref-item">
-        <div class="rh" lang="he">${x.letters.split(" ")[0]}${x.letters.includes(" ") ? ` <small>${x.letters.split(" ")[1]}</small>` : ""}</div>
+        <div class="rh" lang="he">${x.letters}</div>
         <div class="rn">${x.name}</div>
         <div class="vc">${x.codes.map(esc).join(", ")}</div>
       </div>`).join("");
@@ -1851,18 +1857,22 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
         <div class="vc">${v.codes.map(esc).join(", ")}</div>
       </div>`).join("");
     // Wide screens: the same marks laid out by vowel sound (rows) and length (columns).
+    // A trailing number in a cell is how many columns it spans (hiriq is both long and short).
     const cell = ids => ids.map(id => { const v = VBY[id]; return `
       <div class="vt-item"><span class="rh" lang="he">${vowelGlyph(id)}</span>
         <span><span class="rn">${v.name}</span><span class="vc">${v.codes.map(esc).join(", ")}</span></span></div>`; }).join("");
     const VOWEL_TABLE = [
       ["a", ["v:qamets"], ["v:patah"], ["v:hpatah"]],
       ["e", ["v:tsere"], ["v:segol"], ["v:hsegol", "v:sheva"]],
-      ["i", ["v:hiriq"], [], []],
+      ["i", ["v:hiriq", 2], []],
       ["o", ["v:holam"], [], ["v:hqamets"]],
       ["u", ["v:shureq"], ["v:qibbuts"], []],
     ];
     $("vowel-table").innerHTML = `<table><thead><tr><th></th><th scope="col">Long</th><th scope="col">Short</th><th scope="col">Half or silent</th></tr></thead><tbody>`
-      + VOWEL_TABLE.map(([snd, ...cols]) => `<tr><th scope="row">${snd}</th>${cols.map(ids => `<td>${cell(ids)}</td>`).join("")}</tr>`).join("")
+      + VOWEL_TABLE.map(([snd, ...cols]) => `<tr><th scope="row">${snd}</th>${cols.map(ids => {
+        const span = ids.find(x => typeof x === "number") || 1;
+        return `<td${span > 1 ? ` colspan="${span}"` : ""}>${cell(ids.filter(x => typeof x === "string"))}</td>`;
+      }).join("")}</tr>`).join("")
       + `</tbody></table>`;
     checkConflicts();
   }
