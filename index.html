@@ -183,6 +183,22 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
 .ref-item .rn { font-weight: 700; font-size: 0.92rem; }
 .ref-item input { font-family: var(--font-mono); font-size: 0.85rem; padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; min-width: 0; }
 .ref-item input.conflict { border-color: var(--bad); }
+/* Vowel marks: tiles on narrow screens, a sound-by-length table when there's room. */
+.vowel-table { display: none; }
+@media (min-width: 720px) {
+  #vowel-grid { display: none; }
+  .vowel-table { display: block; }
+}
+.vowel-table table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.vowel-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; padding: 6px 8px; text-align: left; }
+.vowel-table thead th:first-child { width: 2.5rem; }
+.vowel-table tbody th { font-family: var(--font-mono); font-size: 1.1rem; text-transform: none; letter-spacing: 0; color: var(--ink); text-align: center; }
+.vowel-table td { border: 1px solid var(--line); padding: 4px 8px; vertical-align: middle; }
+.vt-item { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+.vt-item + .vt-item { border-top: 1px dashed var(--line); }
+.vt-item .rh { font-family: var(--font-heb); font-size: 2rem; line-height: 1.1; width: 2.4rem; text-align: center; }
+.vt-item .rn { display: block; font-weight: 700; font-size: 0.92rem; }
+.vt-item .vc { display: block; font-family: var(--font-mono); font-size: 0.85rem; }
 .ref-warn { color: var(--bad); font-size: 0.88rem; min-height: 1.2em; }
 .ref-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .ref-actions .btn { padding: 7px 12px; font-size: 0.88rem; }
@@ -340,6 +356,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       <div class="ref-grid" id="sound-grid"></div>
       <h3 class="ref-h">Vowel marks</h3>
       <div class="ref-grid" id="vowel-grid"></div>
+      <div class="vowel-table" id="vowel-table"></div>
       <div class="ref-warn" id="ref-warn" aria-live="polite"></div>
       <div class="ref-actions">
         <button class="btn" id="btn-reset-codes" type="button">Restore default shortcuts</button>
@@ -1833,6 +1850,20 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
         <div class="rn">${v.name} <span class="vs">· ${v.sound}</span></div>
         <div class="vc">${v.codes.map(esc).join(", ")}</div>
       </div>`).join("");
+    // Wide screens: the same marks laid out by vowel sound (rows) and length (columns).
+    const cell = ids => ids.map(id => { const v = VBY[id]; return `
+      <div class="vt-item"><span class="rh" lang="he">${vowelGlyph(id)}</span>
+        <span><span class="rn">${v.name}</span><span class="vc">${v.codes.map(esc).join(", ")}</span></span></div>`; }).join("");
+    const VOWEL_TABLE = [
+      ["a", ["v:qamets"], ["v:patah"], ["v:hpatah"]],
+      ["e", ["v:tsere"], ["v:segol"], ["v:hsegol", "v:sheva"]],
+      ["i", ["v:hiriq"], [], []],
+      ["o", ["v:holam"], [], ["v:hqamets"]],
+      ["u", ["v:shureq"], ["v:qibbuts"], []],
+    ];
+    $("vowel-table").innerHTML = `<table><thead><tr><th></th><th scope="col">Long</th><th scope="col">Short</th><th scope="col">Half or silent</th></tr></thead><tbody>`
+      + VOWEL_TABLE.map(([snd, ...cols]) => `<tr><th scope="row">${snd}</th>${cols.map(ids => `<td>${cell(ids)}</td>`).join("")}</tr>`).join("")
+      + `</tbody></table>`;
     checkConflicts();
   }
   function checkConflicts() {
