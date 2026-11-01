@@ -354,7 +354,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       <p>Any listed name spelling is accepted. Shortcuts are the short codes after each name; edit them to suit yourself (separate several with commas). Names like <i>vet</i>, <i>khaf</i> and <i>fe</i> count for their letter. Shin and Sin are separate cards, and their dot is always shown, even with vowel points off. For words, type the letters in reading order: the rightmost Hebrew letter first. Separate letters with spaces, or run shortcuts together if you like (<code>bayz</code> is fine only when it can be read one way).</p>
       <div class="ref-grid" id="ref-grid"></div>
       <h3 class="ref-h">Mode 3: reading with vowels</h3>
-      <p>Type each letter by its sound, then the vowel mark written on it, working right to left: מֹשֶׁה is <code>m oh sh e</code>. Letter names and the editable shortcuts above aren’t used here. Letters that sound alike share a code (Tet and Tav are both <code>t</code>), and a dagesh dot decides <code>b</code>/<code>v</code>, <code>k</code>/<code>kh</code> and <code>p</code>/<code>f</code>. A dot inside a vav (וּ) is the vowel shureq; a dagesh is otherwise not typed. Helper letters that aren’t sounded are left out, though their vowel is still typed: a vav carrying holam or shureq (רוּת is <code>r u t</code>), a yod after hiriq, tsere or segol (בֵּית is <code>b ee t</code>), and a final he with no vowel (יְהוּדָה ends <code>d aa</code>). A sheva on the last letter is silent too and isn’t typed (אֱלִימֶלֶךְ ends <code>l e kh</code>).</p>
+      <p>Type each letter by its sound, then the vowel mark written on it, working right to left: מֹשֶׁה is <code>m oh sh e</code>. Letter names and the editable shortcuts above aren’t used here. Letters that sound alike share a code (Tet and Tav are both <code>t</code>), and a dagesh dot decides <code>b</code>/<code>v</code>, <code>k</code>/<code>kh</code> and <code>p</code>/<code>f</code>. A dot inside a vav (וּ) is the vowel shureq; a dagesh is otherwise not typed. Helper letters that aren’t sounded are left out, though their vowel is still typed: a vav carrying holam or shureq (רוּת is <code>r u t</code>), a yod after hiriq, tsere or segol (בֵּית is <code>b ee t</code>), and a final he with no vowel (יְהוּדָה ends <code>d aa</code>). A sheva on the last letter is silent too and isn’t typed (אֱלִימֶלֶךְ ends <code>l e kh</code>), and so is a final aleph with no vowel (הוּא is <code>h u</code>). Inside a word, an aleph with no vowel after a vowel is usually silent, so <code>'</code> there is optional (וַתֹּאמֶר is <code>v a t oh m e r</code> or <code>v a t oh ' m e r</code>).</p>
       <div class="ref-grid" id="sound-grid"></div>
       <h3 class="ref-h">Vowel marks</h3>
       <div class="ref-grid" id="vowel-grid"></div>
@@ -1400,6 +1400,11 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
           || (pv === "v:qamets" && next && next.base === "ו" && !next.vowels.length && i === clusters.length - 2));
       } else if (cl.base === "ה") {
         cl.silent = bare && last && i > 0;
+      } else if (cl.base === "א" && bare && i > 0) {
+        // A final aleph with no vowel is silent. Inside a word, after a vowel, it usually is too,
+        // but some readings keep a glottal stop, so typing it is optional there.
+        if (last) cl.silent = true;
+        else if (pv && pv !== "v:sheva") cl.optional = true;
       }
       // A sheva on the last letter (ךְ, תְּ) only marks that the word ends in a consonant; it isn't sounded.
       cl.endSheva = last && i > 0 && cl.vowels.includes("v:sheva");
@@ -1415,7 +1420,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       if (withVowels) {
         const [snd, name] = soundOf(cl);
         const fin = cl.base === BY_ID[cl.id].fin ? "Final " : "";
-        if (!cl.silent) slots.push({ id: cl.id, key: "c:" + snd, ci, glyph: cl.plain, label: fin + name, cons: true });
+        if (!cl.silent) slots.push({ id: cl.id, key: "c:" + snd + (cl.optional ? "?" : ""), ci, glyph: cl.plain, label: fin + name, cons: true });
         cl.vowels.forEach(v => { if (!(cl.endSheva && v === "v:sheva")) slots.push({ id: v, key: v, ci, glyph: vowelGlyph(v), label: VBY[v].name }); });
       } else {
         slots.push({ id: cl.id, key: cl.id, ci, glyph: cl.plain, label: letterLabel(cl.id, cl.base) });
@@ -1464,7 +1469,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   }
   function accepted(id) {
     if (VBY[id]) return new Set(VBY[id].codes);
-    if (id.startsWith("c:")) return new Set(SOUNDS[id.slice(2)].codes);
+    if (id.startsWith("c:")) return new Set(SOUNDS[soundKey(id)].codes);
     const l = BY_ID[id];
     const set = new Set(l.names);
     codesFor(id).forEach(c => { if (!state.strict && c) set.add(c); });
@@ -1473,9 +1478,12 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   // Shortcuts that count for a letter or vowel in the current mode.
   function codesFor(id) {
     if (VBY[id]) return VBY[id].codes;
-    if (id.startsWith("c:")) return SOUNDS[id.slice(2)].codes;
+    if (id.startsWith("c:")) return SOUNDS[soundKey(id)].codes;
     return (state.codes[id] || []).filter(Boolean);
   }
+  // Sound keys look like "c:t"; a trailing "?" marks a letter that may be left out (a quiet aleph).
+  const soundKey = id => id.slice(2).replace(/\?$/, "");
+  const optional = id => id.endsWith("?");
   // Split typed text into letter tokens. Returns null when there are no separators.
   function tokens(text) {
     const n = normalize(text);
@@ -1489,8 +1497,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
       if (k === ids.length) return i === str.length;
       const key = i + ":" + k;
       if (memo.has(key)) return memo.get(key);
-      let ok = false;
-      for (const t of accepted(ids[k])) {
+      let ok = optional(ids[k]) && go(i, k + 1);
+      if (!ok) for (const t of accepted(ids[k])) {
         if (str.startsWith(t, i) && go(i + t.length, k + 1)) { ok = true; break; }
       }
       memo.set(key, ok);
@@ -1525,9 +1533,11 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   // ["match" | "swap", tokenIndex, slotIndex], ["extra", tokenIndex] or ["missing", slotIndex].
   function align(toks, ids) {
     const n = toks.length, m = ids.length, acc = ids.map(accepted), hit = (t, k) => acc[k].has(toks[t]);
-    const d = Array.from({ length: n + 1 }, (_, t) => Array.from({ length: m + 1 }, (_, k) => t + k));
+    const skip = ids.map(id => optional(id) ? 0 : 1); // leaving out an optional letter costs nothing
+    const d = Array.from({ length: n + 1 }, (_, t) => [t]);
+    for (let k = 1; k <= m; k++) d[0][k] = d[0][k - 1] + skip[k - 1];
     for (let t = 1; t <= n; t++) for (let k = 1; k <= m; k++)
-      d[t][k] = Math.min(d[t - 1][k - 1] + (hit(t - 1, k - 1) ? 0 : 1), d[t - 1][k] + 1, d[t][k - 1] + 1);
+      d[t][k] = Math.min(d[t - 1][k - 1] + (hit(t - 1, k - 1) ? 0 : 1), d[t - 1][k] + 1, d[t][k - 1] + skip[k - 1]);
     const ops = [];
     let t = n, k = m;
     while (t || k) {
@@ -1544,7 +1554,7 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     let k = 0;
     for (const [op, a, b] of align(toks, ids).ops) {
       if (op === "extra") extras.push({ before: k, you: toks[a] });
-      else if (op === "missing") k = a + 1;
+      else if (op === "missing") { if (optional(ids[a])) rows[a] = { id: ids[a], you: "", ok: true, skipped: true }; k = a + 1; }
       else { rows[b] = { id: ids[b], you: toks[a], ok: op === "match" }; k = b + 1; }
     }
     return { ok: rows.every(r => r.ok) && extras.length === 0, rows, extras };
@@ -1703,13 +1713,16 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     // Scores and weights are kept per letter or vowel (in mode 3 a row's id is a sound key).
     const scoreId = (r, i) => c.slots ? c.slots[i].id : r.id;
     // Adjust weak-letter weights: misses add weight, correct answers let it decay.
+    // A quiet aleph that was left out isn't scored either way.
     res.rows.forEach((r, i) => {
+      if (r.skipped) return;
       const id = scoreId(r, i), m = state.misses[id] || 0;
       state.misses[id] = r.ok ? Math.max(0, m - 0.5) : Math.min(8, m + 2);
       if (!state.misses[id]) delete state.misses[id];
     });
     // Per-letter score. An unspaced wrong answer can't say which letter was off, so it isn't counted.
     if (!(res.run && !res.ok)) res.rows.forEach((r, i) => {
+      if (r.skipped) return;
       const id = scoreId(r, i), t = state.tally[id] || (state.tally[id] = [0, 0]);
       t[0] += r.ok ? 1 : 0; t[1]++;
     });
@@ -1748,8 +1761,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
           const verdictOf = list => list.every(([r]) => r.ok) ? "ok" : "no";
           if (c.clusters[i].silent) el.classList.add("c-silent");
           if (res.gaveUp) return;
-          if (cons.length) el.classList.add("c-" + verdictOf(cons));
-          el.classList.add("v-" + (vows.length ? verdictOf(vows) : cons.length && !c.clusters[i].endSheva ? verdictOf(cons) : "none"));
+          if (cons.length) el.classList.add(cons.every(([r]) => r.skipped) ? "c-silent" : "c-" + verdictOf(cons));
+          el.classList.add("v-" + (vows.length ? verdictOf(vows) : cons.length && !c.clusters[i].endSheva && !cons.every(([r]) => r.skipped) ? verdictOf(cons) : "none"));
         });
       } else {
         glyphs.querySelectorAll(".cl").forEach((el, i) => {
@@ -1782,11 +1795,13 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
             const codes = codesFor(r.id);
             return `${c.slots[i].label}${codes.length ? `<span class="code">${esc(codes[0])}</span>` : ""}`;
           }, () => `Extra`)
-        + (showYou ? row("Typed", "you", r => typedCell(r.ok, r.you), x => typedCell(false, x.you)) : "")
+        + (showYou ? row("Typed", "you", r => r.skipped ? `<span class="mark">✓</span><span class="is">left out (silent)</span>` : typedCell(r.ok, r.you), x => typedCell(false, x.you)) : "")
         + `</tbody></table></div>`;
       const silent = state.mode === "vowels" ? c.clusters.filter(cl => cl.silent) : [];
       if (silent.length) html += `<div>Silent helper letter${silent.length > 1 ? "s" : ""}, not typed: `
         + silent.map(cl => `<span class="heb-inline" lang="he">${cl.base}</span> ${BY_ID[cl.id].name}`).join(", ") + `</div>`;
+      if (state.mode === "vowels" && c.clusters.some(cl => cl.optional))
+        html += `<div>An aleph with no vowel of its own, after a vowel, is usually silent, so <code>'</code> for it is optional.</div>`;
       if (state.mode === "vowels" && c.clusters[c.clusters.length - 1].endSheva)
         html += `<div>The sheva on the last letter is silent, so it isn’t typed.</div>`;
       if (res.readAs) html += `<div>Read your answer as <code>${esc(res.readAs)}</code></div>`;
