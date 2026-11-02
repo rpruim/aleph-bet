@@ -1561,8 +1561,8 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
   }
   // Split unspaced input into letter names and shortcuts. Returns the one reading if there is only one.
   // If there are several (e.g. "sh" = Shin, or Samekh + He), keep the reading closest to the expected
-  // letters, but only when no other reading is just as close. Otherwise return null.
-  // With no expected letters (ids = []), this prefers the reading with the fewest pieces ("aa", not "a a").
+  // letters. Ties go to the reading with fewer pieces, then to the one that takes longer codes first
+  // ("aa h", not "a ah"). With no expected letters (ids = []), that means the fewest pieces ("aa", not "a a").
   function vocabNow() {
     if (state.mode === "vowels") return [...new Set([...Object.values(SOUNDS), ...VOWELS].flatMap(x => x.codes))];
     return [...new Set(LETTERS.flatMap(l => [...accepted(l.id)]))];
@@ -1578,8 +1578,10 @@ details.ref .ref-body { padding: 0 16px 16px; display: flex; flex-direction: col
     go(0, []);
     if (readings.length <= 1) return readings[0] || null;
     const score = r => -align(r, ids).cost;
-    readings.sort((a, b) => score(b) - score(a));
-    return score(readings[0]) > score(readings[1]) ? readings[0] : null;
+    const scored = readings.map(r => ({ r, s: score(r) }));
+    const greedier = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i].length !== b[i].length) return b[i].length - a[i].length; return 0; };
+    scored.sort((a, b) => b.s - a.s || a.r.length - b.r.length || greedier(a.r, b.r));
+    return scored[0].r;
   }
 
   // ---------- Picking cards (letters you miss come up more often) ----------
